@@ -1,0 +1,3105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GAAM Card Battle</title>
+<style>
+/* ============================================================================
+   GAAM CARD BATTLE — STYLES
+   Mobile-first 9:16 frame, centered on desktop. All sizes derive from the
+   frame via CSS variables so it scales from phones to monitors.
+   ========================================================================= */
+:root{
+  --bg:#07070f;
+  --panel:#12122200;
+  --ink:#e8e8f4;
+  --dim:#9a9ab8;
+  --accent:#38b6ff;
+  --energy:#2f7bff;
+  --power:#ffb02e;
+  --good:#4ade80;
+  --bad:#ff5d5d;
+  --gold:#ffd257;
+  --card-radius:10px;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;height:100%;background:var(--bg);overflow:hidden;
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--ink);
+  -webkit-user-select:none;user-select:none;}
+body{display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(120% 100% at 50% 0%,#141430 0%,#07070f 70%);}
+
+/* ---- The 9:16 game frame ---- */
+#frame{
+  position:relative;
+  width:min(100vw, calc(100dvh * 9 / 16));
+  height:min(100dvh, calc(100vw * 16 / 9));
+  max-width:560px;
+  background:linear-gradient(180deg,#0d0d1e 0%,#0a0a16 60%,#0d0d20 100%);
+  border-radius:14px;
+  box-shadow:0 0 60px #0009, inset 0 0 0 1px #ffffff12;
+  display:flex;flex-direction:column;overflow:hidden;
+  touch-action:none;
+}
+#frame.shake{animation:shake .45s cubic-bezier(.36,.07,.19,.97);}
+@keyframes shake{
+  10%,90%{transform:translate(-2px,1px)} 20%,80%{transform:translate(4px,-2px)}
+  30%,50%,70%{transform:translate(-6px,2px)} 40%,60%{transform:translate(6px,-1px)}
+}
+
+/* ---- Top bar ---- */
+#topbar{display:flex;align-items:center;justify-content:space-between;
+  padding:8px 12px 4px;min-height:44px;gap:8px;}
+.pill{background:#ffffff10;border:1px solid #ffffff1c;border-radius:99px;
+  padding:4px 12px;font-size:clamp(10px,2.6vmin,13px);white-space:nowrap;}
+#turnPill b{color:var(--gold)}
+#oppPill b{color:var(--bad)}
+#btnMute{cursor:pointer}
+
+/* ---- Board ---- */
+#board{flex:1;display:flex;gap:6px;padding:2px 8px;min-height:0;}
+.location{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0;
+  justify-content:space-evenly;}
+.slots{flex:0 1 auto;aspect-ratio:3/4;width:100%;display:grid;
+  grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:4px;min-height:0;}
+.slot{border:1.5px dashed #ffffff17;border-radius:8px;position:relative;min-height:0;}
+.slot.droppable{border-color:var(--accent);box-shadow:0 0 12px #38b6ff44 inset;}
+.slot.hot{border-style:solid;border-color:var(--gold);box-shadow:0 0 16px #ffd25766 inset;}
+
+/* ---- Location plate ---- */
+.locPlate{position:relative;border-radius:10px;overflow:hidden;
+  border:1px solid #ffffff22;flex:0 0 auto;height:17%;min-height:58px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background-size:cover;background-position:center;text-align:center;}
+.locPlate::before{content:"";position:absolute;inset:0;background:#000a;}
+.locPlate>*{position:relative;z-index:1;}
+.locName{font-weight:700;font-size:clamp(9px,2.4vmin,13px);letter-spacing:.4px;
+  text-shadow:0 1px 3px #000;}
+.locEffect{font-size:clamp(7px,1.9vmin,10px);color:var(--dim);padding:0 4px;
+  line-height:1.15;text-shadow:0 1px 2px #000;}
+.totals{display:flex;gap:10px;margin-top:2px;font-weight:800;
+  font-size:clamp(11px,3vmin,16px);}
+.totOp{color:var(--bad)} .totMe{color:var(--accent)}
+.totals .lead{color:var(--gold);text-shadow:0 0 8px #ffd25788;}
+.locPlate.won{outline:2px solid var(--gold);box-shadow:0 0 18px #ffd25755;}
+.locPlate.lost{outline:2px solid var(--bad);opacity:.85;}
+
+/* ---- Cards ---- */
+.card{position:absolute;inset:2px;border-radius:var(--card-radius);
+  background:#1a1a2e center/cover no-repeat;border:1px solid #ffffff2e;
+  box-shadow:0 3px 10px #0008;overflow:visible;}
+.card .art{position:absolute;inset:0;border-radius:inherit;background:inherit;
+  background-size:cover;background-position:center;overflow:hidden;}
+.badge{position:absolute;z-index:2;width:38%;aspect-ratio:1;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-weight:900;
+  font-size:clamp(9px,2.8vmin,15px);border:1.5px solid #fff8;
+  text-shadow:0 1px 2px #000;box-shadow:0 2px 6px #0009;}
+.badge.cost{top:-6%;left:-6%;background:radial-gradient(circle at 35% 30%,#6ea8ff,#1c4fd6);}
+.badge.power{bottom:-6%;right:-6%;background:radial-gradient(circle at 35% 30%,#ffd07a,#d97706);}
+.badge.power.buffed{background:radial-gradient(circle at 35% 30%,#9dffb0,#15803d);}
+.badge.power.nerfed{background:radial-gradient(circle at 35% 30%,#ff9d9d,#b91c1c);}
+.cName{position:absolute;left:0;right:0;bottom:0;z-index:1;font-size:clamp(6px,1.8vmin,10px);
+  font-weight:700;text-align:center;background:linear-gradient(0deg,#000d,#0000);
+  padding:8px 2px 2px;border-radius:0 0 var(--card-radius) var(--card-radius);
+  text-shadow:0 1px 2px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.card.staged{outline:2px dashed var(--gold);outline-offset:1px;}
+.card.facedown .art{background-image:none!important;
+  background:repeating-linear-gradient(135deg,#232349 0 8px,#1b1b38 8px 16px)!important;}
+.card.facedown .badge,.card.facedown .cName{display:none;}
+.card.facedown .art::after{content:"GAAM";position:absolute;inset:0;display:flex;
+  align-items:center;justify-content:center;font-weight:900;color:#ffffff30;
+  font-size:clamp(8px,2.4vmin,13px);letter-spacing:2px;}
+.card.flipIn{animation:flipIn .5s ease-out;}
+@keyframes flipIn{0%{transform:rotateY(92deg) scale(1.1)}60%{transform:rotateY(-12deg) scale(1.05)}100%{transform:rotateY(0)}}
+.card.glowing{animation:glowPulse 1s ease-out;}
+@keyframes glowPulse{0%{box-shadow:0 0 0 0 #38b6ff00}30%{box-shadow:0 0 26px 8px #38b6ffcc}100%{box-shadow:0 3px 10px #0008}}
+
+/* ---- Hand area ---- */
+#handArea{flex:0 0 auto;padding:2px 8px 8px;display:flex;flex-direction:column;gap:4px;}
+#cardInfo{min-height:16px;font-size:clamp(8px,2.2vmin,11px);color:var(--dim);
+  text-align:center;padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#cardInfo b{color:var(--ink)}
+#handRow{display:flex;align-items:flex-end;gap:6px;}
+#hand{flex:1;display:flex;justify-content:center;align-items:flex-end;
+  height:calc(min(100vw,calc(100dvh * 9 / 16),560px) * .30);max-height:170px;padding-bottom:7px;}
+.hcard{position:relative;flex:0 1 auto;width:18.5%;max-width:92px;aspect-ratio:3/4.2;
+  margin:0 -3px;transition:transform .15s ease,filter .15s;cursor:grab;z-index:1;}
+.hcard .card{position:absolute;inset:0;}
+.hcard:hover,.hcard.touch{transform:translateY(-14px) scale(1.06);z-index:5;}
+.hcard.unaffordable{filter:grayscale(.8) brightness(.6);}
+.hcard.dragging{opacity:.25;}
+#dragGhost{position:absolute;z-index:60;pointer-events:none;width:88px;aspect-ratio:3/4.2;
+  transform:translate(-50%,-60%) rotate(3deg) scale(1.1);display:none;}
+#dragGhost .card{position:absolute;inset:0;}
+
+/* ---- Side column: energy + end turn ---- */
+#sideCol{display:flex;flex-direction:column;align-items:center;gap:6px;width:19%;max-width:100px;}
+#energyBox{display:flex;flex-direction:column;align-items:center;}
+#energyNum{font-size:clamp(16px,5vmin,26px);font-weight:900;color:#7db4ff;
+  text-shadow:0 0 12px #2f7bff88;line-height:1;}
+#energyLbl{font-size:clamp(7px,1.8vmin,10px);color:var(--dim);letter-spacing:1px;}
+#btnEnd{width:100%;padding:10px 4px;border-radius:12px;border:none;cursor:pointer;
+  font-weight:800;font-size:clamp(10px,2.6vmin,14px);color:#0a0a14;
+  background:linear-gradient(180deg,#ffe08a,#ffb02e);box-shadow:0 3px 0 #a86a00,0 6px 14px #0008;
+  transition:transform .1s,filter .2s;}
+#btnEnd:active{transform:translateY(2px);box-shadow:0 1px 0 #a86a00;}
+#btnEnd:disabled{filter:grayscale(.7) brightness(.55);cursor:not-allowed;}
+#deckCount{font-size:clamp(8px,2vmin,11px);color:var(--dim);}
+
+/* ---- FX layers ---- */
+#fxLayer{position:absolute;inset:0;pointer-events:none;z-index:50;overflow:hidden;}
+.particle{position:absolute;width:8px;height:8px;border-radius:50%;
+  animation:part .8s ease-out forwards;}
+@keyframes part{to{transform:translate(var(--dx),var(--dy)) scale(0);opacity:0;}}
+.floatTxt{position:absolute;font-weight:900;font-size:15px;pointer-events:none;
+  text-shadow:0 1px 3px #000;animation:floatUp 1s ease-out forwards;z-index:55;}
+@keyframes floatUp{to{transform:translateY(-34px);opacity:0;}}
+
+/* ---- Ken Burns art drift + combo counter ---- */
+.slots .card .art{background-size:135% 135%;
+  animation:kenburns 16s ease-in-out infinite alternate;
+  animation-delay:var(--sheenD,0s);}
+@keyframes kenburns{0%{background-position:28% 24%}100%{background-position:72% 76%}}
+.comboPop{position:absolute;z-index:56;font-weight:900;font-style:italic;
+  font-size:clamp(15px,4.8vmin,24px);letter-spacing:1px;pointer-events:none;
+  -webkit-text-stroke:1px #200;text-shadow:0 2px 4px #000,0 0 16px currentColor;
+  white-space:nowrap;transform:translate(-50%,-50%);}
+
+/* ---- Weather + destructible plates ---- */
+.location{overflow:hidden;border-radius:10px;}
+.locPlate.crack1::after,.locPlate.crack2::after{content:"";position:absolute;inset:0;
+  pointer-events:none;z-index:0;opacity:.55;
+  background:
+    linear-gradient(107deg,transparent 47.6%,#000d 49%,transparent 50.2%) 14% 0/34% 100% no-repeat,
+    linear-gradient(63deg,transparent 48%,#000b 49.4%,transparent 50.6%) 74% 0/26% 100% no-repeat;}
+.locPlate.crack2::after{opacity:1;
+  background:
+    linear-gradient(107deg,transparent 47.6%,#000e 49%,transparent 50.4%) 12% 0/36% 100% no-repeat,
+    linear-gradient(63deg,transparent 47.8%,#000d 49.4%,transparent 50.8%) 72% 0/30% 100% no-repeat,
+    linear-gradient(148deg,transparent 48.2%,#000c 49.6%,transparent 50.6%) 44% 0/30% 100% no-repeat,
+    radial-gradient(ellipse at 50% 60%,#0007 0%,transparent 55%);}
+.locPlate.crack2{box-shadow:inset 0 0 18px #000c;}
+
+/* ---- Concede + visual pass 4 ---- */
+#btnQuit{cursor:pointer;display:none;}
+#hand{perspective:620px;}
+.hcard.tilt{z-index:6;transition:transform .06s linear;}
+.dmgFlash{position:absolute;inset:0;z-index:57;pointer-events:none;opacity:0;
+  background:radial-gradient(ellipse at center,transparent 42%,rgba(255,30,45,.5) 100%);}
+
+/* ---- Final-turn tension + super cinematics ---- */
+#frame.finalTurn::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:40;
+  box-shadow:inset 0 0 90px 34px rgba(140,10,30,.4);animation:tension 1.5s ease-in-out infinite;}
+@keyframes tension{0%,100%{opacity:.55}50%{opacity:1}}
+#frame.finalTurn #energyNum{color:#ff7a7a;text-shadow:0 0 14px #ff3b3b99;}
+.cineBar{position:absolute;left:0;right:0;height:0;background:#000;z-index:58;pointer-events:none;}
+.cineTint{position:absolute;inset:0;z-index:41;pointer-events:none;mix-blend-mode:screen;opacity:0;}
+
+/* ---- Parallax background ---- */
+#bgFx{position:absolute;inset:0;overflow:hidden;z-index:0;pointer-events:none;}
+#topbar,#board,#handArea{position:relative;z-index:1;}
+.bgLayer{position:absolute;inset:-8%;}
+.bgStar{position:absolute;border-radius:50%;background:#fff;}
+.bgNebula{position:absolute;width:70%;height:50%;border-radius:50%;filter:blur(60px);
+  opacity:.16;animation:nebulaDrift 26s ease-in-out infinite alternate;}
+@keyframes nebulaDrift{0%{transform:translate(-6%,-4%) scale(1)}100%{transform:translate(8%,6%) scale(1.15)}}
+
+/* ---- Card art sheen sweep ---- */
+.slots .card .art::after{content:"";position:absolute;inset:0;border-radius:inherit;
+  background:linear-gradient(115deg,transparent 32%,rgba(255,255,255,.16) 46%,transparent 60%);
+  background-size:280% 100%;background-position:130% 0;
+  animation:sheen 9s linear infinite;animation-delay:var(--sheenD,0s);pointer-events:none;}
+@keyframes sheen{0%,70%{background-position:130% 0}86%{background-position:-80% 0}100%{background-position:-80% 0}}
+
+/* ---- Lead-change shockwave + verdict stamps ---- */
+.shockRing{position:absolute;border:3px solid #ffd257;border-radius:50%;
+  pointer-events:none;z-index:53;}
+.verdictStamp{position:absolute;left:50%;top:50%;z-index:6;pointer-events:none;
+  transform:translate(-50%,-50%) rotate(-11deg);font-weight:900;letter-spacing:3px;
+  font-size:clamp(15px,4.6vmin,24px);padding:2px 12px;border:3px solid;border-radius:8px;
+  text-shadow:0 2px 3px #000;background:#000000aa;}
+.verdictStamp.won{color:var(--gold);border-color:var(--gold);box-shadow:0 0 18px #ffd25788;}
+.verdictStamp.lost{color:var(--bad);border-color:var(--bad);}
+.verdictStamp.tie{color:var(--dim);border-color:var(--dim);}
+
+/* ---- Teams & Supers ---- */
+.teamDot{position:absolute;bottom:5%;left:5%;width:15%;aspect-ratio:1;border-radius:50%;
+  z-index:2;border:1.5px solid #ffffffaa;box-shadow:0 0 7px currentColor;pointer-events:none;}
+.teamDot.synergy{animation:dotPulse 1.2s ease-in-out infinite;}
+@keyframes dotPulse{0%,100%{box-shadow:0 0 5px currentColor}
+  50%{box-shadow:0 0 14px currentColor;transform:scale(1.3)}}
+.scorchMark{position:absolute;inset:12%;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,#000000aa 25%,transparent 70%);
+  display:flex;align-items:center;justify-content:center;
+  font-size:clamp(13px,4.5vmin,22px);opacity:.38;filter:grayscale(1);}
+#deckFilterRow{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;max-width:94%;}
+.card.haloed{box-shadow:0 0 16px #ffd257aa,0 3px 10px #0008;}
+.haloRing{position:absolute;top:-9%;left:50%;transform:translateX(-50%) rotateX(62deg);
+  width:58%;height:17%;border:3px solid #ffedb0;border-radius:50%;z-index:3;
+  box-shadow:0 0 14px #ffd257,inset 0 0 8px #ffd257;pointer-events:none;
+  animation:haloPulse 2.2s ease-in-out infinite;}
+@keyframes haloPulse{0%,100%{opacity:.85;margin-top:0}50%{opacity:1;margin-top:-3px}}
+.superBtn{position:absolute;left:50%;bottom:3px;transform:translateX(-50%);z-index:6;
+  background:linear-gradient(180deg,#ffe08a,#ff8a3d);color:#211000;font-weight:900;
+  border:none;border-radius:99px;padding:4px 11px;font-size:clamp(8px,2.3vmin,11px);
+  cursor:pointer;box-shadow:0 0 16px #ffd257cc;white-space:nowrap;
+  animation:superPulse 1.1s ease-in-out infinite;letter-spacing:.5px;}
+@keyframes superPulse{0%,100%{box-shadow:0 0 8px #ffd257aa}50%{box-shadow:0 0 22px #ffd257}}
+.locPlate.superArmed{outline:2px solid var(--gold);box-shadow:0 0 24px #ffd257aa;}
+#banner.epic{font-size:clamp(22px,7vmin,46px);font-style:italic;font-weight:900;
+  background:linear-gradient(180deg,#fff6d8 0%,#ffd257 45%,#ff8a3d 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  -webkit-text-stroke:1.5px #4b2a00;letter-spacing:3px;white-space:normal;
+  text-align:center;max-width:94%;line-height:1.15;
+  filter:drop-shadow(0 0 18px #ffd257aa) drop-shadow(0 3px 3px #000);}
+#graveGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:min(94%,420px);
+  max-height:44%;overflow-y:auto;padding:4px;touch-action:pan-y;}
+#graveCount{font-size:clamp(8px,2vmin,11px);color:var(--dim);cursor:pointer;}
+
+/* ---- Turn banner + ambient UI energy ---- */
+#banner{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);z-index:71;
+  font-size:clamp(30px,11vmin,54px);font-weight:900;letter-spacing:5px;color:var(--gold);
+  text-shadow:0 0 34px #ffd25788,0 2px 4px #000;pointer-events:none;white-space:nowrap;}
+#banner.hidden{display:none;}
+@keyframes logoFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+#logo{animation:logoFloat 3.4s ease-in-out infinite;}
+#menuOverlay{background:#05050cc9;} /* translucent: the starfield lives behind it */
+.menuFloatCard{position:absolute;width:70px;aspect-ratio:3/4.2;border-radius:10px;
+  background:repeating-linear-gradient(135deg,#232349 0 8px,#1b1b38 8px 16px);
+  border:1px solid #ffffff18;opacity:.22;pointer-events:none;filter:blur(.6px);
+  animation:menuCardDrift var(--mcDur,22s) ease-in-out infinite alternate;}
+@keyframes menuCardDrift{0%{transform:translate(0,0) rotate(var(--mcRot,8deg))}
+  100%{transform:translate(var(--mcDx,30px),var(--mcDy,-50px)) rotate(calc(var(--mcRot,8deg)*-1))}}
+/* foil finish on 6-cost cards */
+.card.foil{border-color:#ffd25777;}
+.card.foil .art::before{content:"";position:absolute;inset:0;border-radius:inherit;z-index:1;
+  background:linear-gradient(120deg,transparent 25%,#ffd25726 40%,#ffffff40 50%,#ffd25726 60%,transparent 75%);
+  background-size:250% 250%;pointer-events:none;
+  animation:foilSweep 5.5s ease-in-out infinite;animation-delay:var(--sheenD,0s);}
+@keyframes foilSweep{0%,60%{background-position:120% 120%}100%{background-position:-40% -40%}}
+@keyframes readyGlow{0%,100%{box-shadow:0 3px 0 #a86a00,0 6px 14px #0008}
+  50%{box-shadow:0 3px 0 #a86a00,0 0 24px #ffd257aa}}
+#btnEnd:not(:disabled){animation:readyGlow 1.7s ease-in-out infinite;}
+#inspectOverlay{perspective:900px;}
+.ovTitle{font-size:clamp(20px,6vmin,26px);font-weight:900;color:var(--gold);letter-spacing:2px;}
+
+/* ---- Accounts ---- */
+#userList{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:92%;}
+
+/* ---- Deck builder ---- */
+#deckSelRow{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:92%;}
+.deckPill{background:#ffffff10;border:1px solid #ffffff22;border-radius:99px;
+  padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:background .15s;}
+.deckPill:hover{background:#ffffff22;}
+.deckPill.sel{border-color:var(--gold);color:var(--gold);}
+#deckName{width:min(70%,240px);padding:9px;border-radius:10px;border:1px solid #ffffff2a;
+  background:#ffffff0d;color:var(--ink);font-size:14px;text-align:center;outline:none;}
+#deckCurrent{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;width:94%;
+  max-height:16%;overflow-y:auto;min-height:26px;}
+.deckChip{display:flex;align-items:center;gap:4px;background:#1c2c4d;border:1px solid #38b6ff44;
+  border-radius:7px;padding:3px 7px;font-size:11px;font-weight:700;cursor:pointer;}
+.deckChip:hover{background:#79222a;border-color:#ff5d5d66;}
+.deckChip .cc{color:#7db4ff;}
+#deckGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;width:94%;
+  max-height:34%;overflow-y:auto;padding:4px;}
+.dcard{position:relative;aspect-ratio:3/4.2;cursor:pointer;transition:transform .12s;}
+.dcard:hover{transform:scale(1.06);z-index:2;}
+.dcard .card{cursor:pointer;}
+.dcard .cnt{position:absolute;top:-5px;right:-5px;z-index:3;background:var(--gold);color:#111;
+  border-radius:99px;font-size:11px;font-weight:900;padding:2px 7px;box-shadow:0 2px 5px #0009;}
+.dcard.maxed{filter:brightness(1.15) drop-shadow(0 0 6px #ffd25788);}
+.rowBtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
+.rowBtns .mbtn{width:auto;padding:10px 16px;font-size:13px;}
+
+/* ---- Admin panel ---- */
+#frame.wide{width:100vw;height:100dvh;max-width:none;border-radius:0;}
+#adminOverlay{justify-content:flex-start;padding:16px 20px;gap:10px;}
+.aThumb{width:42px;height:56px;border-radius:6px;background-size:cover;background-position:center;
+  flex:0 0 auto;border:1px solid #ffffff26;cursor:pointer;background-color:#1a1a2e;}
+.aLocThumb{width:72px;height:40px;border-radius:6px;background-size:cover;background-position:center;
+  flex:0 0 auto;border:1px solid #ffffff26;background-color:#1a1a2e;}
+@media(min-width:760px){
+  #adminBody{display:grid;grid-template-columns:1fr 1fr;gap:6px;align-content:start;}
+  .aHead{grid-column:1/-1;}
+}
+.aRow input[type=color]{width:36px;height:28px;padding:1px;border-radius:6px;cursor:pointer;}
+.aTeamMembers{display:flex;flex-wrap:wrap;gap:4px;width:100%;align-items:center;}
+/* allow scrolling inside overlay panels on touch screens (frame is touch-action:none) */
+.overlay{touch-action:pan-y;}
+#adminBody,#deckGrid,#lbRows,#deckCurrent{touch-action:pan-y;-webkit-overflow-scrolling:touch;}
+#adminLayout{display:flex;gap:12px;width:min(98%,1560px);flex:1;min-height:0;text-align:left;}
+#adminNav{flex:0 0 118px;display:flex;flex-direction:column;gap:6px;}
+.anavBtn{background:#ffffff0c;border:1px solid #ffffff1c;border-radius:10px;color:var(--dim);
+  padding:10px 12px;font-size:13px;font-weight:700;cursor:pointer;text-align:left;
+  transition:background .15s,color .15s;}
+.anavBtn:hover{background:#ffffff1c;color:var(--ink);}
+.anavBtn.sel{background:#2a2340;border-color:var(--gold);color:var(--gold);}
+@media(max-width:759px){
+  #adminLayout{flex-direction:column;}
+  #adminNav{flex-direction:row;flex-wrap:wrap;flex:0 0 auto;}
+  .anavBtn{padding:7px 10px;font-size:12px;}
+}
+#adminBody{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;
+  gap:5px;text-align:left;padding:4px;}
+.aFileBtn{background:linear-gradient(180deg,#3b6ff0,#274bb4);border:none;color:#fff;
+  border-radius:7px;padding:5px 11px;cursor:pointer;font-size:12px;font-weight:700;
+  flex:0 0 auto;white-space:nowrap;box-shadow:0 2px 6px #0006;}
+.aFileBtn:hover{filter:brightness(1.15);}
+.aHead{color:var(--gold);font-weight:900;font-size:13px;letter-spacing:2px;margin-top:8px;}
+.aRow{display:flex;gap:5px;align-items:center;background:#ffffff08;border:1px solid #ffffff10;
+  border-radius:8px;padding:5px 8px;flex-wrap:wrap;}
+.aRow label{font-size:11px;color:var(--dim);flex:1;min-width:90px;}
+.aRow input,.aRow select{background:#0d0d1e;border:1px solid #ffffff26;color:var(--ink);
+  border-radius:6px;padding:4px 6px;font-size:12px;outline:none;}
+.aRow input[type=number]{width:58px;} .aRow input[type=text]{flex:2;min-width:110px;}
+.aCardName{font-weight:800;font-size:12px;color:var(--ink);width:100%;}
+
+/* ---- Sprite FX + projectiles ---- */
+.fxSprite{position:absolute;pointer-events:none;z-index:52;background-repeat:no-repeat;}
+.fxOrb{position:absolute;width:13px;height:13px;border-radius:50%;z-index:54;
+  pointer-events:none;}
+
+/* ---- Inspector overlay ---- */
+#inspectOverlay{justify-content:center;gap:10px;cursor:pointer;}
+#inspCardHolder{position:relative;width:min(48%,190px);aspect-ratio:3/4.2;margin:0 auto;}
+#inspName{font-size:clamp(18px,5.5vmin,26px);font-weight:900;letter-spacing:.5px;}
+#inspStats{font-size:clamp(11px,3vmin,14px);color:var(--gold);font-weight:700;}
+#inspText{font-size:clamp(12px,3.2vmin,15px);color:var(--ink);max-width:300px;line-height:1.45;}
+
+/* ---- Leaderboard overlay ---- */
+#lbRows{width:min(88%,340px);display:flex;flex-direction:column;gap:4px;
+  max-height:46%;overflow-y:auto;}
+.lbRow{display:flex;justify-content:space-between;align-items:center;gap:8px;
+  background:#ffffff0d;border:1px solid #ffffff14;border-radius:8px;
+  padding:6px 10px;font-size:12px;white-space:nowrap;}
+.lbRow .win{color:var(--good);font-weight:800}
+.lbRow .lose{color:var(--bad);font-weight:800}
+.lbRow .draw{color:var(--dim);font-weight:800}
+.lbHead{color:var(--dim);font-size:11px;letter-spacing:1px;margin-top:6px;text-align:left;}
+
+/* clickable board cards + animated number bumps */
+.slots .card{cursor:pointer;}
+.totals span{display:inline-block;}
+
+/* ---- Overlays ---- */
+.overlay{position:absolute;inset:0;z-index:80;background:#05050ce8;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:14px;padding:24px;text-align:center;backdrop-filter:blur(4px);}
+.overlay.hidden{display:none;}
+#logo{font-size:clamp(26px,9vmin,44px);font-weight:900;letter-spacing:3px;
+  background:linear-gradient(180deg,#ffe08a,#ff7a2e);-webkit-background-clip:text;
+  background-clip:text;color:transparent;text-shadow:0 0 40px #ff9d2e33;}
+#logo small{display:block;font-size:.34em;color:var(--dim);-webkit-text-fill-color:var(--dim);letter-spacing:6px;}
+.mbtn{width:min(78%,280px);padding:13px;border-radius:12px;border:1px solid #ffffff2a;
+  background:#ffffff10;color:var(--ink);font-size:15px;font-weight:700;cursor:pointer;
+  transition:background .15s,transform .1s;}
+.mbtn:hover{background:#ffffff22;} .mbtn:active{transform:scale(.97);}
+.mbtn.primary{background:linear-gradient(180deg,#4ec1ff,#1c6fd6);border:none;color:#fff;}
+#joinRow{display:flex;gap:8px;width:min(78%,280px);}
+#joinCode{flex:1;padding:12px;border-radius:12px;border:1px solid #ffffff2a;
+  background:#ffffff0d;color:var(--ink);font-size:16px;text-transform:uppercase;
+  letter-spacing:2px;text-align:center;outline:none;width:100%;}
+#hostCode{font-size:clamp(28px,9vmin,42px);font-weight:900;letter-spacing:4px;color:var(--gold);
+  text-shadow:0 0 24px #ffd25755;}
+.subtext{color:var(--dim);font-size:13px;max-width:300px;line-height:1.4;}
+#resultTitle{font-size:clamp(26px,9vmin,40px);font-weight:900;}
+#resultTitle.win{color:var(--gold);text-shadow:0 0 30px #ffd25788;}
+#resultTitle.lose{color:var(--bad);} #resultTitle.draw{color:var(--dim);}
+#resultDetail{color:var(--dim);font-size:14px;line-height:1.6;}
+#toast{position:absolute;top:14%;left:50%;transform:translateX(-50%);z-index:70;
+  background:#000c;border:1px solid #ffffff22;border-radius:99px;padding:8px 20px;
+  font-weight:800;font-size:clamp(12px,3.4vmin,17px);opacity:0;pointer-events:none;
+  transition:opacity .25s;white-space:nowrap;}
+#toast.show{opacity:1;}
+.spin{width:26px;height:26px;border-radius:50%;border:3px solid #ffffff22;
+  border-top-color:var(--accent);animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="frame">
+  <!-- ---- HUD ---- -->
+  <div id="topbar">
+    <span class="pill" id="oppPill"><b id="oppName">AI</b> · Hand: <span id="oppHand">3</span></span>
+    <span class="pill" id="turnPill">Turn <b id="turnNow">1</b>/<span id="turnMax">6</span></span>
+    <span class="pill" id="btnQuit" title="Concede match">🏳</span>
+    <span class="pill" id="btnMute" title="Toggle sound">🔊</span>
+  </div>
+
+  <!-- ---- Board: 3 locations, enemy slots on top, mine below ---- -->
+  <div id="board"></div>
+
+  <!-- ---- Hand + energy + end turn ---- -->
+  <div id="handArea">
+    <div id="cardInfo">Drag a card to a location</div>
+    <div id="handRow">
+      <div id="hand"></div>
+      <div id="sideCol">
+        <div id="energyBox">
+          <div id="energyNum">1</div>
+          <div id="energyLbl">ENERGY</div>
+        </div>
+        <button id="btnEnd">End Turn</button>
+        <div id="deckCount">Deck: 9</div>
+        <div id="graveCount" title="Your graveyard">💀 0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---- FX / drag layers ---- -->
+  <div id="fxLayer"></div>
+  <div id="dragGhost"></div>
+  <div id="toast"></div>
+  <div id="banner" class="hidden"></div>
+
+  <!-- ---- Main menu ---- -->
+  <div class="overlay" id="menuOverlay">
+    <div class="menuFloatCard" style="left:8%;top:12%;--mcDur:24s;--mcRot:-9deg;--mcDx:26px;--mcDy:-60px"></div>
+    <div class="menuFloatCard" style="right:10%;top:22%;--mcDur:19s;--mcRot:12deg;--mcDx:-34px;--mcDy:44px;width:54px"></div>
+    <div class="menuFloatCard" style="left:16%;bottom:14%;--mcDur:27s;--mcRot:6deg;--mcDx:40px;--mcDy:-38px;width:60px"></div>
+    <div class="menuFloatCard" style="right:14%;bottom:24%;--mcDur:16s;--mcRot:-14deg;--mcDx:-24px;--mcDy:-52px;width:44px"></div>
+    <div id="logo">GAAM<small>CARD BATTLE</small></div>
+    <button class="mbtn" id="btnUser">👤 &nbsp;<span id="userBtnName">Player</span></button>
+    <button class="mbtn primary" id="btnVsAI">⚔️ &nbsp;Play vs AI</button>
+    <button class="mbtn" id="btnHost">📡 &nbsp;Host Match (get a code)</button>
+    <div id="joinRow">
+      <input id="joinCode" placeholder="CODE e.g. X7K2" maxlength="8" autocomplete="off">
+      <button class="mbtn" id="btnJoin" style="width:auto;flex:0 0 auto;">Join</button>
+    </div>
+    <button class="mbtn" id="btnDecks">🃏 &nbsp;Deck Builder</button>
+    <button class="mbtn" id="btnBoard">🏆 &nbsp;Leaderboard</button>
+    <button class="mbtn" id="btnAdmin">⚙️ &nbsp;Admin</button>
+    <div class="subtext">Win 2 of 3 locations by having more Power. 6 turns. Energy grows each turn.</div>
+  </div>
+
+  <!-- ---- Hosting: show code ---- -->
+  <div class="overlay hidden" id="hostOverlay">
+    <div class="subtext">Share this code with your opponent:</div>
+    <div id="hostCode">----</div>
+    <div class="spin"></div>
+    <div class="subtext" id="hostStatus">Waiting for an opponent to join…</div>
+    <button class="mbtn" id="btnCancelHost">Cancel</button>
+  </div>
+
+  <!-- ---- Concede confirmation ---- -->
+  <div class="overlay hidden" id="quitOverlay">
+    <div class="ovTitle">🏳 CONCEDE?</div>
+    <div class="subtext">Ending the match now counts as a loss on your record.</div>
+    <div class="rowBtns">
+      <button class="mbtn" id="btnConcedeYes" style="border-color:var(--bad);color:var(--bad)">Concede Match</button>
+      <button class="mbtn primary" id="btnConcedeNo">Keep Fighting</button>
+    </div>
+  </div>
+
+  <!-- ---- Graveyard (view / pick a card to revive) ---- -->
+  <div class="overlay hidden" id="graveOverlay">
+    <div class="ovTitle" id="graveTitle">💀 GRAVEYARD</div>
+    <div class="subtext" id="graveHint">Cards destroyed in battle rest here.</div>
+    <div id="graveGrid"></div>
+    <button class="mbtn" id="btnGraveClose">Close</button>
+  </div>
+
+  <!-- ---- Accounts ---- -->
+  <div class="overlay hidden" id="userOverlay">
+    <div class="ovTitle">👤 ACCOUNTS</div>
+    <div class="subtext">Each account has its own decks (up to 5), stats, and
+      leaderboard entry — all stored on this device.</div>
+    <div id="userList"></div>
+    <div style="display:flex;gap:8px;width:min(78%,280px)">
+      <input id="newUserName" placeholder="New account name" maxlength="14"
+        style="flex:1;padding:12px;border-radius:12px;border:1px solid #ffffff2a;
+        background:#ffffff0d;color:var(--ink);font-size:14px;text-align:center;outline:none;">
+      <button class="mbtn" id="btnUserCreate" style="width:auto;flex:0 0 auto;">Create</button>
+    </div>
+    <div class="rowBtns">
+      <button class="mbtn" id="btnUserDelete">Delete Current</button>
+      <button class="mbtn" id="btnUserClose">Close</button>
+    </div>
+  </div>
+
+  <!-- ---- Deck builder ---- -->
+  <div class="overlay hidden" id="deckOverlay">
+    <div class="ovTitle">🃏 DECK BUILDER</div>
+    <div id="deckSelRow"></div>
+    <input id="deckName" placeholder="Deck name" maxlength="18" autocomplete="off">
+    <div id="deckBuildCount" class="subtext">0/12 — tap cards below to add, tap chips to remove</div>
+    <div id="deckCurrent"></div>
+    <div id="deckFilterRow"></div>
+    <div id="deckGrid"></div>
+    <div class="rowBtns">
+      <button class="mbtn primary" id="btnDeckSave">Save</button>
+      <button class="mbtn" id="btnDeckActive">★ Set Active</button>
+      <button class="mbtn" id="btnDeckDelete">Delete</button>
+      <button class="mbtn" id="btnDeckClose">Close</button>
+    </div>
+  </div>
+
+  <!-- ---- Admin panel ---- -->
+  <div class="overlay hidden" id="adminOverlay">
+    <div class="ovTitle">⚙️ ADMIN</div>
+    <div class="subtext">Live game editor. Changes apply instantly, persist on this device,
+      and can be exported as a new config.js. In multiplayer the host's settings are used.</div>
+    <div id="adminLayout">
+      <div id="adminNav"></div>
+      <div id="adminBody"></div>
+    </div>
+    <div class="rowBtns">
+      <button class="mbtn primary" id="btnAdminApply">Apply &amp; Save</button>
+      <button class="mbtn" id="btnAdminExport">Export config.js</button>
+      <button class="mbtn" id="btnAdminReset">Reset</button>
+      <button class="mbtn" id="btnAdminClose">Close</button>
+    </div>
+  </div>
+
+  <!-- ---- Card inspector (tap any placed/hand card) ---- -->
+  <div class="overlay hidden" id="inspectOverlay">
+    <div id="inspCardHolder"></div>
+    <div id="inspName"></div>
+    <div id="inspStats"></div>
+    <div id="inspText"></div>
+    <div class="subtext">Tap anywhere to close</div>
+  </div>
+
+  <!-- ---- Leaderboard ---- -->
+  <div class="overlay hidden" id="lbOverlay">
+    <div style="font-size:clamp(20px,6vmin,26px);font-weight:900;color:var(--gold);letter-spacing:2px;">🏆 LEADERBOARD</div>
+    <div id="lbSummary" class="subtext" style="line-height:1.7"></div>
+    <div id="lbRows"></div>
+    <button class="mbtn" id="btnLbClose">Close</button>
+  </div>
+
+  <!-- ---- Game over ---- -->
+  <div class="overlay hidden" id="overOverlay">
+    <div id="resultTitle">VICTORY</div>
+    <div id="resultDetail"></div>
+    <button class="mbtn primary" id="btnRematch">🔄 Instant Rematch</button>
+    <button class="mbtn" id="btnAgain">Back to Menu</button>
+  </div>
+</div>
+
+<!-- PeerJS for matchmaking-code multiplayer (P2P over free public broker) -->
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<!-- External, data-driven configuration: rules, cards, locations -->
+<script src="config.js"></script>
+
+<script>
+"use strict";
+/* ============================================================================
+   GAAM CARD BATTLE — ENGINE
+   Modules (in order): helpers → AudioManager → FXManager → ability registries
+   → game state → turn engine → renderer → drag & drop → AI → NetManager → menu
+   ========================================================================= */
+
+const CFG = window.GAAM_CONFIG;
+const R   = CFG.rules;
+const $   = (id) => document.getElementById(id);
+const frame = $("frame"), boardEl = $("board"), handEl = $("hand");
+
+/* Seedable PRNG (mulberry32) — multiplayer clients share a seed so random
+   ability targets resolve identically on both machines. */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+const esc=(v)=>String(v??"").replace(/&/g,"&amp;").replace(/"/g,"&quot;")
+  .replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const shuffle=(arr,rnd=Math.random)=>{for(let i=arr.length-1;i>0;i--){
+  const j=Math.floor(rnd()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;};
+const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
+const other=(side)=>side==="me"?"op":"me";
+let uidSeq=0;
+
+function toast(msg,ms=1400){const t=$("toast");t.textContent=msg;t.classList.add("show");
+  clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),ms);}
+
+/* ============================================================================
+   AUDIO MANAGER — all sounds are synthesized with the Web Audio API, so the
+   prototype needs zero external files. To use real audio, replace the bodies
+   of these methods with `new Audio('assets/sfx/xxx.mp3').play()`.
+   Hooks: drawCard, playCard, reveal(sfxKey), locationWon, gameEnd(won), click
+   ========================================================================= */
+class AudioManager{
+  constructor(){this.ctx=null;this.muted=false;this.musicOn=true;this._musicTimer=null;this._step=0;
+    this.htmlTrack=null;this._musicKey=null;}
+  _ac(){const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC)return null;
+    if(!this.ctx){this.ctx=new AC();
+    this.master=this.ctx.createGain();this.master.gain.value=0.5;
+    this.master.connect(this.ctx.destination);
+    this.musicGain=this.ctx.createGain();this.musicGain.gain.value=0.14;
+    this.musicGain.connect(this.master);}return this.ctx;}
+  unlock(){const c=this._ac();if(c&&c.state==="suspended")c.resume();
+    /* first user gesture: (re)start whatever screen music should be playing */
+    if(this.musicOn&&!this.htmlTrack&&!this._musicTimer)this.setMusic(this._musicKey||"menu",true);}
+  /* final-turn heartbeat loop */
+  tension(on){
+    if(on&&!this._tensionTimer){
+      const tick=()=>{if(!this.muted)this.play("heartbeat");};
+      tick();this._tensionTimer=setInterval(tick,1300);
+    }else if(!on&&this._tensionTimer){
+      clearInterval(this._tensionTimer);this._tensionTimer=null;}
+  }
+  toggleMute(){this.muted=!this.muted;
+    if(this.master)this.master.gain.value=this.muted?0:0.5;
+    if(this.htmlTrack)this.htmlTrack.volume=this.muted?0:0.35;
+    return this.muted;}
+  /* one enveloped oscillator note */
+  _note(freq,{type="sine",dur=0.2,vol=0.5,when=0,slide=0}={}){
+    if(this.muted)return;const c=this._ac();if(!c)return;const t=c.currentTime+when;
+    const o=c.createOscillator(),g=c.createGain();
+    o.type=type;o.frequency.setValueAtTime(freq,t);
+    if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(30,freq+slide),t+dur);
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+0.012);
+    g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+    o.connect(g);g.connect(this.master);o.start(t);o.stop(t+dur+0.05);}
+  _noise(dur=0.15,vol=0.25,when=0,{filter="highpass",freq=900}={}){
+    if(this.muted)return;const c=this._ac();if(!c)return;const t=c.currentTime+when;
+    const len=Math.floor(c.sampleRate*dur);const buf=c.createBuffer(1,len,c.sampleRate);
+    const d=buf.getChannelData(0);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*(1-i/len);
+    const s=c.createBufferSource();s.buffer=buf;const g=c.createGain();g.gain.value=vol;
+    const f=c.createBiquadFilter();f.type=filter;f.frequency.value=freq;
+    s.connect(f);f.connect(g);g.connect(this.master);s.start(t);}
+  /* generic entry point — every sfx key in config resolves here */
+  play(key){const r=AUDIO_RECIPES[key];if(r)r(this);else if(key&&key!=="none")AUDIO_RECIPES.chime(this);}
+  /* ---- Game hooks ---- */
+  click()      {this._note(660,{type:"square",dur:.06,vol:.15});}
+  drawCard()   {this._note(520,{type:"triangle",dur:.1,vol:.25,slide:260});this._noise(.05,.08);}
+  playCard()   {this._note(180,{type:"triangle",dur:.15,vol:.4,slide:-60});this._noise(.08,.15);}
+  reveal(key){this.play(key||"chime");}
+  locationWon(){[523,659,784].forEach((f,i)=>this._note(f,{type:"triangle",dur:.18,vol:.3,when:i*.09}));}
+  gameEnd(won){
+    if(won)[523,659,784,1046,1318].forEach((f,i)=>this._note(f,{type:"triangle",dur:.3,vol:.35,when:i*.13}));
+    else   [400,330,260,180].forEach((f,i)=>this._note(f,{type:"sawtooth",dur:.35,vol:.2,when:i*.16}));}
+  /* ---- MUSIC ENGINE ----------------------------------------------------
+     setMusic(key) picks the soundtrack for a screen or location.
+     key: "menu", "battle", or a location id (e.g. "frozen_wastes").
+     Resolution: CFG.music[key] -> CFG.music.battle -> CFG.music.menu.
+     Each entry may name an MP3 (entry.src). If it loads, it loops; if it's
+     missing/unplayable, the entry's synth theme (chords+beat) plays instead
+     - so the game always has music, and custom tracks are just file drops. */
+  setMusic(key,force=false){
+    if(this._musicKey===key&&!force)return;
+    const M=CFG.music||{};
+    const entry=M[key]||M.battle||M.menu;
+    this._musicKey=key;
+    const seq=this._musicSeq=(this._musicSeq||0)+1; /* only latest call may attach audio */
+    this._stopMusic();
+    if(!entry||!this.musicOn)return;
+    /* candidate MP3s: this entry's own file, then the default battle track
+       (for stage keys), then the synth theme — first one that plays wins */
+    const srcs=[entry.src,
+      (key!=="menu"&&M.battle&&M.battle.src!==entry.src)?M.battle.src:null]
+      .filter(Boolean);
+    const tryNext=(idx)=>{
+      if(seq!==this._musicSeq)return;
+      if(idx>=srcs.length){if(!this._musicTimer)this._startSynth(entry);return;}
+      const el=new Audio(srcs[idx]);
+      el.loop=true;el.volume=this.muted?0:0.35;
+      let advanced=false;
+      const fail=()=>{if(advanced||seq!==this._musicSeq)return;advanced=true;tryNext(idx+1);};
+      el.onerror=fail;
+      let pr=null;try{pr=el.play();}catch(e){}
+      if(pr&&pr.then){
+        pr.then(()=>{
+          if(seq!==this._musicSeq){el.pause();return;}
+          advanced=true;this._stopSynth();this.htmlTrack=el;
+        }).catch(fail);
+      }else fail();
+    };
+    if(srcs.length)tryNext(0);else this._startSynth(entry);
+  }
+  _stopSynth(){if(this._musicTimer){clearInterval(this._musicTimer);this._musicTimer=null;}}
+  _stopMusic(){this._stopSynth();
+    if(this.htmlTrack){this.htmlTrack.pause();this.htmlTrack=null;}}
+  _startSynth(entry){
+    this._stopSynth();
+    const chords=entry.chords||[[220,261.6,329.6],[174.6,220,261.6],[130.8,164.8,196],[196,246.9,293.7]];
+    const beat=entry.beat||1.9;
+    const tick=()=>{
+      if(this.muted||this.htmlTrack)return;
+      const c=this._ac();if(!c)return;
+      const ch=chords[this._step%chords.length];this._step++;
+      ch.forEach(f=>{const o=c.createOscillator(),g=c.createGain();
+        o.type="triangle";o.frequency.value=f;
+        const t=c.currentTime;
+        g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.11,t+beat*0.3);
+        g.gain.linearRampToValueAtTime(0.0001,t+beat);
+        o.connect(g);g.connect(this.musicGain);o.start(t);o.stop(t+beat+0.1);});
+      const b=c.createOscillator(),bg=c.createGain();b.type="sine";b.frequency.value=ch[0]/2;
+      const t=c.currentTime;bg.gain.setValueAtTime(0,t);
+      bg.gain.linearRampToValueAtTime(0.18,t+0.1);bg.gain.linearRampToValueAtTime(0.0001,t+beat);
+      b.connect(bg);bg.connect(this.musicGain);b.start(t);b.stop(t+beat+0.1);};
+    tick();this._musicTimer=setInterval(tick,beat*1000);}
+}
+/* ============================================================================
+   AUDIO RECIPES — editable sound library. Every `sfx` key in config.js maps
+   to one of these functions. Add your own: name(a){ a._note(...); a._noise(...) }
+   _note(freq,{type,dur,vol,when,slide})  _noise(dur,vol,when,{filter,freq})
+   ========================================================================= */
+const AUDIO_RECIPES={
+  click(a){a._note(660,{type:"square",dur:.06,vol:.15});},
+  chime(a){a._note(880,{type:"sine",dur:.12,vol:.3});
+           a._note(1320,{type:"sine",dur:.16,vol:.2,when:.07});},
+  zap(a){a._note(1200,{type:"sawtooth",dur:.18,vol:.3,slide:-900});a._noise(.12,.2);},
+  boom(a){a._note(90,{type:"sine",dur:.4,vol:.6,slide:-50});a._noise(.25,.3);},
+  dark(a){a._note(140,{type:"sawtooth",dur:.5,vol:.25,slide:-70});
+          a._note(70,{type:"sine",dur:.5,vol:.3});},
+  /* FIRE: low whoosh + rumble + staggered crackles */
+  fire(a){a._noise(.45,.4,0,{filter:"lowpass",freq:800});
+          a._note(75,{type:"sawtooth",dur:.5,vol:.28,slide:-25});
+          for(let i=0;i<4;i++)a._noise(.04,.22,.08+i*.09,{filter:"bandpass",freq:2400});},
+  /* ICE: glassy descending shimmer + crystalline pings */
+  ice(a){a._note(2600,{type:"sine",dur:.35,vol:.22,slide:-1400});
+         a._note(3400,{type:"sine",dur:.25,vol:.14,when:.05,slide:-1000});
+         [3520,2960,2350].forEach((f,i)=>a._note(f,{type:"triangle",dur:.1,vol:.16,when:.1+i*.08}));
+         a._noise(.3,.12,0,{filter:"highpass",freq:5000});},
+  /* ELECTRIC: rapid jittery zap bursts + crackle */
+  electric(a){for(let i=0;i<5;i++){
+           a._note(700+Math.random()*1100,{type:"sawtooth",dur:.05,vol:.24,when:i*.045,slide:-300});}
+           a._noise(.2,.2,0,{filter:"highpass",freq:2500});
+           a._note(120,{type:"square",dur:.18,vol:.15,slide:-40});},
+  /* BUFF: rising bright arpeggio */
+  buff(a){[392,523,659].forEach((f,i)=>a._note(f,{type:"triangle",dur:.14,vol:.26,when:i*.07}));},
+  /* WHOOSH: modal/card zoom-in swipe */
+  whoosh(a){a._noise(.22,.28,0,{filter:"bandpass",freq:1300});
+            a._note(280,{type:"sine",dur:.28,vol:.18,slide:520});},
+  /* SUPER CHARGE: rising sweep + swelling noise */
+  superCharge(a){a._note(160,{type:"sawtooth",dur:.9,vol:.22,slide:740});
+                 a._note(80,{type:"sine",dur:.9,vol:.25,slide:160});
+                 a._noise(.85,.14,0,{filter:"bandpass",freq:900});},
+  /* SUPER BLAST: layered detonation */
+  superBlast(a){a._note(55,{type:"sine",dur:.7,vol:.7,slide:-25});
+                a._noise(.5,.45,0,{filter:"lowpass",freq:1400});
+                a._noise(.12,.3,0,{filter:"highpass",freq:3200});
+                a._note(1800,{type:"sawtooth",dur:.25,vol:.2,slide:-1500});},
+  /* LEAD CHANGE: quick two-tone alert */
+  leadChange(a){a._note(740,{type:"triangle",dur:.09,vol:.22});
+                a._note(988,{type:"triangle",dur:.14,vol:.22,when:.08});},
+  /* HEARTBEAT: low double-thump for final-turn tension */
+  heartbeat(a){a._note(58,{type:"sine",dur:.16,vol:.5,slide:-12});
+               a._note(52,{type:"sine",dur:.2,vol:.4,when:.22,slide:-10});},
+  /* TEAM BARKS: short signature stingers when a team card reveals */
+  barkFire(a){a._note(220,{type:"sawtooth",dur:.12,vol:.18,slide:190});
+              a._noise(.09,.12,0,{filter:"bandpass",freq:1900});},
+  barkStorm(a){a._note(900,{type:"square",dur:.05,vol:.15,slide:420});
+               a._note(1400,{type:"square",dur:.05,vol:.13,when:.06});},
+  barkFrost(a){a._note(1900,{type:"sine",dur:.15,vol:.16,slide:-620});},
+  barkLight(a){[660,990].forEach((f,i)=>a._note(f,{type:"triangle",dur:.1,vol:.15,when:i*.06}));},
+  barkDark(a){a._note(110,{type:"sawtooth",dur:.2,vol:.18,slide:-45});},
+  /* REVIVE: angelic rising arpeggio + shimmer */
+  revive(a){[523,659,784,1046,1318].forEach((f,i)=>
+              a._note(f,{type:"triangle",dur:.4,vol:.24,when:i*.09}));
+            a._note(2093,{type:"sine",dur:.6,vol:.12,when:.45});
+            a._noise(.7,.08,.1,{filter:"highpass",freq:6000});},
+};
+const audio=new AudioManager();
+
+/* ============================================================================
+   FX MANAGER — placeholder visual effects, all DOM/CSS based.
+   vfx keys from config: burst | shake | glow | frost | none
+   Add new effects: write a method + add a case in play().
+   ========================================================================= */
+class FXManager{
+  constructor(layer){this.layer=layer;this._preloaded=false;}
+  /* Route: fxLibrary keys play their configured impact+sound; legacy keys
+     ("burst","shake","glow","frost") still work as simple particles. */
+  play(key,el){
+    if(CFG.fxLibrary&&CFG.fxLibrary[key]){this.effect(key,el);return;}
+    switch(key){
+    case "burst": this.burst(el,"#ffd257");break;
+    case "shake": this.burst(el,"#ffe08a");this.shake();break;
+    case "glow":  this.glow(el);break;
+    case "frost": this.burst(el,"#9fd8ff");this.glow(el);break;
+  }}
+  /* preload sprite sheets so the first effect doesn't hitch */
+  preload(){if(this._preloaded)return;this._preloaded=true;
+    Object.values(CFG.sprites||{}).forEach(m=>{const i=new Image();i.src=m.src;});}
+  /* play one sprite-sheet animation centered on an element */
+  sprite(name,el,{scale=2}={}){
+    const m=(CFG.sprites||{})[name];
+    if(!m||!el||!el.isConnected)return 0;
+    const {x,y}=this._center(el);
+    const r=el.getBoundingClientRect();
+    const w=Math.max(r.width,r.height)*scale, h=w*(m.fh/m.fw);
+    const rows=Math.ceil(m.frames/m.cols);
+    const d=document.createElement("div");d.className="fxSprite";
+    Object.assign(d.style,{left:(x-w/2)+"px",top:(y-h/2)+"px",width:w+"px",height:h+"px",
+      backgroundImage:`url('${m.src}')`,
+      backgroundSize:(m.cols*w)+"px "+(rows*h)+"px"});
+    this.layer.appendChild(d);
+    let f=0;const step=1000/(m.fps||24);
+    const iv=setInterval(()=>{
+      f++;
+      if(f>=m.frames){clearInterval(iv);d.remove();return;}
+      d.style.backgroundPosition=(-(f%m.cols)*w)+"px "+(-Math.floor(f/m.cols)*h)+"px";
+    },step);
+    return m.frames*step;
+  }
+  /* faint looping stage-life sprite, clipped inside a location plate */
+  ambient(name,plate){
+    const m=(CFG.sprites||{})[name];
+    if(!m||!plate||!plate.isConnected)return;
+    const pr=plate.getBoundingClientRect();
+    const w=pr.width*(0.25+Math.random()*0.3), h=w*(m.fh/m.fw);
+    const rows=Math.ceil(m.frames/m.cols);
+    const d=document.createElement("div");d.className="fxSprite";
+    Object.assign(d.style,{position:"absolute",zIndex:"0",opacity:"0.32",
+      left:(Math.random()*(pr.width-w))+"px",
+      top:(Math.random()*Math.max(1,pr.height-h))+"px",
+      width:w+"px",height:h+"px",
+      backgroundImage:`url('${m.src}')`,
+      backgroundSize:(m.cols*w)+"px "+(rows*h)+"px"});
+    plate.appendChild(d);
+    let f=0;const step=1000/((m.fps||24)*0.7); /* slower = calmer */
+    const iv=setInterval(()=>{f++;
+      if(f>=m.frames){clearInterval(iv);d.remove();return;}
+      d.style.backgroundPosition=(-(f%m.cols)*w)+"px "+(-Math.floor(f/m.cols)*h)+"px";
+    },step);
+  }
+  /* "N× COMBO!" pop when one reveal chains multiple hits */
+  comboPop(el,n){
+    if(!el||!el.isConnected)return;
+    const {x,y}=this._center(el);
+    const c=document.createElement("div");c.className="comboPop";
+    c.textContent=n+"× COMBO!";
+    c.style.color=n>=4?"#ff5d5d":n===3?"#ff9a4d":"#ffd257";
+    c.style.left=x+"px";c.style.top=(y-14)+"px";
+    this.layer.appendChild(c);
+    if(c.animate)c.animate([
+      {transform:"translate(-50%,-50%) scale(2.6) rotate(-6deg)",opacity:0},
+      {transform:"translate(-50%,-50%) scale(1) rotate(-6deg)",opacity:1,offset:.3},
+      {transform:"translate(-50%,-50%) scale(1) rotate(-6deg)",opacity:1,offset:.72},
+      {transform:"translate(-50%,-62%) scale(.9) rotate(-6deg)",opacity:0}
+    ],{duration:1300,easing:"ease-out"});
+    setTimeout(()=>c.remove(),1350);
+  }
+  /* red edge flash when one of YOUR cards is destroyed */
+  damageFlash(){
+    const d=document.createElement("div");d.className="dmgFlash";
+    frame.appendChild(d);
+    if(d.animate){d.animate([{opacity:0},{opacity:1,offset:.25},{opacity:0}],
+      {duration:420,easing:"ease-out"}).onfinish=()=>d.remove();}
+    setTimeout(()=>d.remove(),500);
+  }
+  /* single golden mote rising from a haloed card */
+  mote(el){
+    if(!el||!el.isConnected)return;
+    const f=frame.getBoundingClientRect(),r=el.getBoundingClientRect();
+    const t=document.createElement("div");t.className="particle";
+    t.style.background="#ffe9a8";t.style.width=t.style.height="4px";
+    t.style.left=(r.left-f.left+r.width*(0.2+Math.random()*0.6))+"px";
+    t.style.top=(r.top-f.top+r.height*0.25)+"px";
+    t.style.setProperty("--dx",(Math.random()*10-5)+"px");
+    t.style.setProperty("--dy",(-22-Math.random()*20)+"px");
+    t.style.animationDuration="1.4s";
+    this.layer.appendChild(t);setTimeout(()=>t.remove(),1450);
+  }
+  /* expanding ring, used for lead changes and location verdicts */
+  shockwave(el,color="#ffd257"){
+    if(!el||!el.isConnected||!document.body.animate)return;
+    const {x,y}=this._center(el);
+    const r=document.createElement("div");r.className="shockRing";
+    r.style.borderColor=color;
+    const sz=el.getBoundingClientRect().width;
+    Object.assign(r.style,{left:(x-sz/2)+"px",top:(y-sz/2)+"px",width:sz+"px",height:sz+"px"});
+    this.layer.appendChild(r);
+    r.animate([{transform:"scale(.25)",opacity:1},{transform:"scale(2.1)",opacity:0}],
+      {duration:520,easing:"ease-out"}).onfinish=()=>r.remove();
+    setTimeout(()=>r.remove(),600);
+  }
+  /* named library effect: impact sprite + sound + optional screen shake */
+  effect(key,el){
+    const lib=(CFG.fxLibrary||{})[key];
+    if(!lib){this.burst(el);return;}
+    if(lib.impact)this.sprite(lib.impact,el,{scale:lib.scale||2});
+    if(lib.sfx)audio.play(lib.sfx);
+    if(lib.shake)this.shake();
+  }
+  /* glowing orb flies source→target, then the library impact hits the target.
+     Used whenever one card's ability affects another card. */
+  interact(key,fromEl,toEl,delta){
+    const lib=(CFG.fxLibrary||{})[key]||{};
+    const showHit=()=>{
+      this.effect(key,toEl);
+      if(delta)this.floatText(toEl,(delta>0?"+":"")+delta,delta>0?"#4ade80":"#ff5d5d");
+    };
+    if(!fromEl||!toEl||fromEl===toEl||!document.body.animate){showHit();return Promise.resolve();}
+    const a=this._center(fromEl),b=this._center(toEl);
+    const orb=document.createElement("div");orb.className="fxOrb";
+    const col=lib.projectile||"#ffffff";
+    orb.style.background=`radial-gradient(circle at 35% 35%, #fff, ${col})`;
+    orb.style.boxShadow=`0 0 14px 5px ${col}88`;
+    orb.style.left=a.x+"px";orb.style.top=a.y+"px";
+    this.layer.appendChild(orb);
+    const dx=b.x-a.x,dy=b.y-a.y,dur=Math.min(420,220+Math.hypot(dx,dy)*0.35);
+    /* small particle trail behind the orb */
+    const trail=setInterval(()=>{const r=orb.getBoundingClientRect(),f=frame.getBoundingClientRect();
+      const t=document.createElement("div");t.className="particle";
+      t.style.background=col;t.style.width=t.style.height="5px";
+      t.style.left=(r.left-f.left+6)+"px";t.style.top=(r.top-f.top+6)+"px";
+      t.style.setProperty("--dx","0px");t.style.setProperty("--dy","0px");
+      this.layer.appendChild(t);setTimeout(()=>t.remove(),400);},34);
+    return new Promise(res=>{
+      const anim=orb.animate([
+        {transform:"translate(-50%,-50%) scale(.7)"},
+        {transform:`translate(calc(${dx*0.5}px - 50%), calc(${dy*0.5-36}px - 50%)) scale(1.25)`,offset:.5},
+        {transform:`translate(calc(${dx}px - 50%), calc(${dy}px - 50%)) scale(1)`}
+      ],{duration:dur,easing:"cubic-bezier(.35,.1,.6,1)"});
+      let fin=false;
+      const done=()=>{if(fin)return;fin=true;clearInterval(trail);orb.remove();showHit();res();};
+      anim.onfinish=done;setTimeout(done,dur+120);
+    });
+  }
+  _center(el){const f=frame.getBoundingClientRect(),r=el.getBoundingClientRect();
+    return{x:r.left-f.left+r.width/2,y:r.top-f.top+r.height/2};}
+  burst(el,color="#ffd257",n=16){if(!el||!el.isConnected)return;const {x,y}=this._center(el);
+    for(let i=0;i<n;i++){const p=document.createElement("div");p.className="particle";
+      p.style.background=color;p.style.left=x+"px";p.style.top=y+"px";
+      const a=Math.random()*Math.PI*2,d=30+Math.random()*70;
+      p.style.setProperty("--dx",Math.cos(a)*d+"px");
+      p.style.setProperty("--dy",Math.sin(a)*d+"px");
+      this.layer.appendChild(p);setTimeout(()=>p.remove(),850);}}
+  shake(){frame.classList.remove("shake");void frame.offsetWidth;frame.classList.add("shake");}
+  glow(el){if(!el||!el.isConnected)return;el.classList.remove("glowing");void el.offsetWidth;el.classList.add("glowing");}
+  floatText(el,txt,color="#4ade80"){if(!el||!el.isConnected)return;const {x,y}=this._center(el);
+    const t=document.createElement("div");t.className="floatTxt";t.textContent=txt;
+    t.style.color=color;t.style.left=(x-14)+"px";t.style.top=(y-10)+"px";
+    this.layer.appendChild(t);setTimeout(()=>t.remove(),1000);}
+  /* impact dust when a card is slammed onto the board */
+  dust(el,n=12){if(!el||!el.isConnected)return;const f=frame.getBoundingClientRect(),r=el.getBoundingClientRect();
+    const y=r.top-f.top+r.height*0.92,cx=r.left-f.left+r.width/2;
+    for(let i=0;i<n;i++){const p=document.createElement("div");p.className="particle";
+      p.style.background=["#c9b79a","#9d9dae","#7a7a8c"][i%3];
+      const sz=(3+Math.random()*5);p.style.width=p.style.height=sz+"px";
+      p.style.left=(cx+(Math.random()-0.5)*r.width*0.8)+"px";p.style.top=y+"px";
+      const dir=Math.random()<0.5?-1:1;
+      p.style.setProperty("--dx",dir*(14+Math.random()*40)+"px");
+      p.style.setProperty("--dy",(-6-Math.random()*22)+"px");
+      this.layer.appendChild(p);setTimeout(()=>p.remove(),850);}}
+  confetti(){for(let i=0;i<40;i++){setTimeout(()=>{
+    const p=document.createElement("div");p.className="particle";
+    p.style.background=["#ffd257","#4ec1ff","#ff5d5d","#4ade80"][i%4];
+    p.style.left=Math.random()*100+"%";p.style.top="-10px";
+    p.style.setProperty("--dx",(Math.random()*60-30)+"px");
+    p.style.setProperty("--dy",(200+Math.random()*300)+"px");
+    p.style.animationDuration="1.6s";
+    this.layer.appendChild(p);setTimeout(()=>p.remove(),1700);},i*35);}}
+}
+const fx=new FXManager($("fxLayer"));
+
+/* ── Parallax starfield behind everything (menu + battle) ── */
+(function initBgFx(){
+  const bg=document.createElement("div");bg.id="bgFx";
+  frame.prepend(bg);
+  const layers=[];
+  const neb=document.createElement("div");neb.className="bgNebula";
+  neb.style.background="radial-gradient(circle,#3a2a6b,#0000)";
+  neb.style.left="15%";neb.style.top="8%";
+  bg.appendChild(neb);
+  const neb2=neb.cloneNode();neb2.style.background="radial-gradient(circle,#0e3a4a,#0000)";
+  neb2.style.left="45%";neb2.style.top="55%";neb2.style.animationDelay="-13s";
+  bg.appendChild(neb2);
+  [[22,1.3,.3,80],[14,2,.5,55],[9,2.8,.75,38]].forEach(([n,sz,op,dur],li)=>{
+    const layer=document.createElement("div");layer.className="bgLayer";
+    const inner=document.createElement("div");inner.className="bgLayer";
+    layer.appendChild(inner);bg.appendChild(layer);
+    for(let i=0;i<n;i++){
+      const st=document.createElement("div");st.className="bgStar";
+      st.style.width=st.style.height=sz+"px";st.style.opacity=op;
+      st.style.left=Math.random()*100+"%";st.style.top=Math.random()*100+"%";
+      inner.appendChild(st);
+    }
+    if(inner.animate)inner.animate(
+      [{transform:"translateY(0)"},{transform:"translateY(-26px)"}],
+      {duration:dur*1000,direction:"alternate",iterations:Infinity,easing:"ease-in-out"});
+    layers.push({el:layer,depth:(li+1)*4});
+  });
+  /* gentle pointer parallax */
+  frame.addEventListener("pointermove",(e)=>{
+    const r=frame.getBoundingClientRect();
+    const nx=(e.clientX-r.left)/r.width-0.5, ny=(e.clientY-r.top)/r.height-0.5;
+    layers.forEach(l=>{l.el.style.transform=`translate(${-nx*l.depth}px,${-ny*l.depth}px)`;});
+  },{passive:true});
+})();
+
+/* ── Ambient stage life: locations flicker with their element ── */
+let ambientTimer=null;
+function startAmbient(){
+  stopAmbient();
+  ambientTimer=setInterval(()=>{
+    if(G.phase==="menu"||G.phase==="over"||!G.locs.length)return;
+    G.locs.forEach((L,i)=>{
+      if(L.def.ambient&&Math.random()<0.4){
+        const lib=(CFG.fxLibrary||{})[L.def.ambient];
+        fx.ambient(lib?lib.impact:L.def.ambient,$("plate"+i));
+      }
+      /* haloed (revived) cards shed rising light motes */
+      ["me","op"].forEach(side=>L.cards[side].forEach(c=>{
+        if(c.halo&&c.el&&Math.random()<0.5)fx.mote(c.el);}));
+    });
+  },1100);
+}
+function stopAmbient(){if(ambientTimer){clearInterval(ambientTimer);ambientTimer=null;}
+  stopWeather();}
+
+/* ── per-stage weather: particles fall (or rise) inside each location column ── */
+const WEATHER_TYPES={
+  snow:  {c:"#eaf6ff",sz:[2,4],  dur:[3800,5200],rise:false,drift:26,op:.7},
+  embers:{c:"#ff9a4d",sz:[2,4],  dur:[2600,3800],rise:true, drift:16,op:.8},
+  sparks:{c:"#ffe95e",sz:[1.5,2.5],dur:[1200,1900],rise:true,drift:30,op:.9},
+  gold:  {c:"#ffd257",sz:[1.5,3],dur:[3000,4600],rise:false,drift:18,op:.6},
+  neon:  {c:"#ff5fd0",sz:[2,3.5],dur:[2800,4200],rise:false,drift:34,op:.5},
+};
+let weatherTimer=null;
+function startWeather(){
+  stopWeather();
+  weatherTimer=setInterval(()=>{
+    if(G.phase==="menu"||!G.locs.length)return;
+    document.querySelectorAll("#board .location").forEach((col,i)=>{
+      const L=G.locs[i];
+      if(L&&L.def.weather&&Math.random()<0.8)spawnWeather(col,L.def.weather);
+    });
+  },380);
+}
+function stopWeather(){if(weatherTimer){clearInterval(weatherTimer);weatherTimer=null;}}
+function spawnWeather(col,type){
+  const conf=WEATHER_TYPES[type];if(!conf)return;
+  const r=col.getBoundingClientRect();if(!r.width)return;
+  const sz=conf.sz[0]+Math.random()*(conf.sz[1]-conf.sz[0]);
+  const p=document.createElement("div");
+  p.style.cssText=`position:absolute;border-radius:50%;pointer-events:none;z-index:2;
+    width:${sz}px;height:${sz}px;background:${conf.c};opacity:${conf.op};
+    left:${(Math.random()*96+2).toFixed(1)}%;top:${conf.rise?"101%":"-2%"};
+    box-shadow:0 0 ${(sz*2).toFixed(0)}px ${conf.c}`;
+  col.appendChild(p);
+  const dur=conf.dur[0]+Math.random()*(conf.dur[1]-conf.dur[0]);
+  const dy=(conf.rise?-1:1)*(r.height+24);
+  if(p.animate){
+    p.animate([
+      {transform:"translate(0,0)",opacity:0},
+      {transform:`translate(${((Math.random()*2-1)*conf.drift).toFixed(0)}px,${(dy*0.5).toFixed(0)}px)`,opacity:conf.op,offset:.5},
+      {transform:`translate(${((Math.random()*2-1)*conf.drift).toFixed(0)}px,${dy}px)`,opacity:0}
+    ],{duration:dur,easing:"linear"}).onfinish=()=>p.remove();
+  }
+  setTimeout(()=>p.remove(),dur+150);
+}
+
+/* ============================================================================
+   TWEENS — flyCard animates a card clone between two points (FLIP-style),
+   used for: deck→hand draws, hand→board throws, board→hand retracts, and
+   opponent fly-in reveals. Uses the Web Animations API; degrades to instant
+   placement where unsupported.
+   ========================================================================= */
+function flyCard(def,fromRect,toEl,{facedown=false,dur=340,arc=34,trail=null}={}){
+  return new Promise((res)=>{
+    if(!toEl||!fromRect||!toEl.animate){res();return;}
+    const f=frame.getBoundingClientRect(),to=toEl.getBoundingClientRect();
+    const clone=createCardEl({def,permBuff:0,el:null},{facedown});
+    /* elemental trail: the card's vfx color streams behind it in flight */
+    if(trail===null){const lib=(CFG.fxLibrary||{})[def.vfx];trail=lib?lib.projectile:null;}
+    let trailIv=null;
+    if(trail)trailIv=setInterval(()=>{
+      const r=clone.getBoundingClientRect();
+      if(!clone.isConnected)return;
+      const t=document.createElement("div");t.className="particle";
+      t.style.background=trail;t.style.width=t.style.height=(4+Math.random()*4)+"px";
+      t.style.left=(r.left-f.left+r.width*(0.3+Math.random()*0.4))+"px";
+      t.style.top=(r.top-f.top+r.height*(0.4+Math.random()*0.4))+"px";
+      t.style.setProperty("--dx",(Math.random()*14-7)+"px");
+      t.style.setProperty("--dy",(6+Math.random()*14)+"px");
+      $("fxLayer").appendChild(t);setTimeout(()=>t.remove(),480);
+    },30);
+    Object.assign(clone.style,{position:"absolute",inset:"auto",zIndex:"65",
+      left:(fromRect.left-f.left)+"px",top:(fromRect.top-f.top)+"px",
+      width:fromRect.width+"px",height:fromRect.height+"px",
+      transformOrigin:"top left",pointerEvents:"none"});
+    frame.appendChild(clone);
+    toEl.style.visibility="hidden";
+    const dx=to.left-fromRect.left,dy=to.top-fromRect.top;
+    const sw=to.width/Math.max(1,fromRect.width),sh=to.height/Math.max(1,fromRect.height);
+    const anim=clone.animate([
+      {transform:"translate(0px,0px) scale(1,1) rotate(0deg)"},
+      {transform:`translate(${dx*0.55}px,${dy*0.55-arc}px) scale(${(1+sw)/2},${(1+sh)/2}) rotate(5deg)`,offset:0.55},
+      {transform:`translate(${dx}px,${dy}px) scale(${sw},${sh}) rotate(0deg)`}
+    ],{duration:dur,easing:"cubic-bezier(.25,.8,.3,1)"});
+    let finished=false;
+    const done=()=>{if(finished)return;finished=true;
+      if(trailIv)clearInterval(trailIv);
+      clone.remove();toEl.style.visibility="";res();};
+    anim.onfinish=done;setTimeout(done,dur+150); /* safety net */
+  });
+}
+/* quick squash-and-settle on landing */
+function slam(el){if(!el||!el.animate)return;
+  el.animate([{transform:"scale(1.16)"},{transform:"scale(.94)",offset:.55},{transform:"scale(1)"}],
+    {duration:220,easing:"ease-out"});}
+/* pulse a number element when its value changes */
+function bumpNum(el,val){const t=String(val);
+  if(el.textContent!==t){el.textContent=t;
+    if(el.animate)el.animate([{transform:"scale(1.45)"},{transform:"scale(1)"}],
+      {duration:260,easing:"ease-out"});}}
+
+/* ── Animated overlay open/close: backdrop fades, children cascade in with
+   a springy rise. Every modal in the game goes through these two. ── */
+function showOverlay(id,{stagger=true}={}){
+  const ov=$(id);ov.classList.remove("hidden");
+  if(!ov.animate)return;
+  ov.animate([{opacity:0},{opacity:1}],{duration:200,easing:"ease-out"});
+  if(stagger)[...ov.children].forEach((ch,i)=>{if(!ch.animate)return;
+    ch.animate([{opacity:0,transform:"translateY(26px) scale(.93)"},
+                {opacity:1,transform:"translateY(0) scale(1)"}],
+      {duration:330,delay:50+i*55,easing:"cubic-bezier(.2,.9,.3,1.18)",fill:"backwards"});});
+}
+function closeOverlay(id,cb){
+  const ov=$(id);
+  if(ov.classList.contains("hidden")){cb&&cb();return;}
+  if(!ov.animate){ov.classList.add("hidden");cb&&cb();return;}
+  const a=ov.animate([{opacity:1},{opacity:0}],{duration:170,easing:"ease-in"});
+  let f=false;const done=()=>{if(f)return;f=true;ov.classList.add("hidden");cb&&cb();};
+  a.onfinish=done;setTimeout(done,260);
+}
+/* big zoom-in/zoom-out announcement text ("TURN 3", "LOCATION WON"...) */
+function bannerEpic(txt){
+  const b=$("banner");
+  b.classList.add("epic");
+  banner(txt,1900);
+  setTimeout(()=>b.classList.remove("epic"),1950);
+}
+function banner(txt,dur=1150){
+  const b=$("banner");b.textContent=txt;b.classList.remove("hidden");
+  if(!b.animate){setTimeout(()=>b.classList.add("hidden"),900);return;}
+  const a=b.animate([
+    {opacity:0,transform:"translate(-50%,-50%) scale(2.4)",filter:"blur(8px)"},
+    {opacity:1,transform:"translate(-50%,-50%) scale(1)",filter:"blur(0px)",offset:.28},
+    {opacity:1,transform:"translate(-50%,-50%) scale(1.04)",offset:.75},
+    {opacity:0,transform:"translate(-50%,-50%) scale(.6)"}
+  ],{duration:dur,easing:"ease-out"});
+  a.onfinish=()=>b.classList.add("hidden");
+}
+
+/* ============================================================================
+   ABILITY REGISTRY — rule hooks referenced by `abilityId` in config.js.
+   To write a new card rule, add one entry here and reference it in config.
+
+   onReveal hooks:  fn(ctx) where ctx = {card, locIdx, side, state, rng, fx}
+                    Mutate card.permBuff on targets, use fx for feedback.
+   ongoing hooks:   fn(card, locIdx, side, state) => number (power bonus,
+                    recomputed live every render)
+   ========================================================================= */
+/* affect(): THE standard way for one card to change another card's power.
+   State mutates immediately (multiplayer stays deterministic); the visual —
+   a projectile from source to target + the source card's `interactFx`
+   library impact + sound + floating number — plays after `staggerMs`.
+   Multi-target abilities pass an increasing stagger so hits ripple. */
+function affect(ctx,target,delta,staggerMs=0){
+  G._combo=(G._combo||0)+1; /* chained hits build a combo */
+  target.permBuff+=delta;
+  const key=ctx.card.def.interactFx||(delta>0?"buff":"dark");
+  setTimeout(()=>{
+    if(!target.el)return;
+    if(target!==ctx.card&&ctx.card.el)fx.interact(key,ctx.card.el,target.el,delta);
+    else{fx.effect(key,target.el);
+         fx.floatText(target.el,(delta>0?"+":"")+delta,delta>0?"#4ade80":"#ff5d5d");}
+  },staggerMs);
+}
+const IST=()=>R.interactStaggerMs||130;
+
+const ABILITIES = {
+  onReveal: {
+    drawCard(ctx){
+      const drew=drawOne(ctx.side);
+      if(ctx.card.el)fx.effect(ctx.card.def.interactFx||"flash",ctx.card.el);
+      if(ctx.side==="me")toast(drew?"Drew a card!":"Hand full — no draw");
+    },
+    buffAdjacent(ctx){ /* +2 power to your OTHER cards at this location */
+      const mates=ctx.state.locs[ctx.locIdx].cards[ctx.side].filter(c=>c!==ctx.card);
+      mates.forEach((c,i)=>affect(ctx,c,2,i*IST()));
+    },
+    freezeEnemies(ctx){ /* -2 power to each revealed enemy card here */
+      const foes=ctx.state.locs[ctx.locIdx].cards[other(ctx.side)];
+      foes.forEach((c,i)=>affect(ctx,c,-2,i*IST()));
+    },
+    powerPerEnemy(ctx){ /* +1 per revealed enemy card here */
+      const n=ctx.state.locs[ctx.locIdx].cards[other(ctx.side)].length;
+      if(n>0)affect(ctx,ctx.card,n);
+    },
+    smiteRandomEnemy(ctx){ /* -3 to ONE random enemy card here (shared rng!) */
+      const foes=ctx.state.locs[ctx.locIdx].cards[other(ctx.side)];
+      if(foes.length)affect(ctx,foes[Math.floor(ctx.rng()*foes.length)],-3);
+    },
+    buffAllFriendly(ctx){ /* +1 to all your other cards everywhere */
+      let i=0;
+      ctx.state.locs.forEach(L=>L.cards[ctx.side].forEach(c=>{
+        if(c!==ctx.card)affect(ctx,c,1,(i++)*IST());}));
+    },
+    royalDecree(ctx){ /* +2 to all your other cards everywhere */
+      let i=0;
+      ctx.state.locs.forEach(L=>L.cards[ctx.side].forEach(c=>{
+        if(c!==ctx.card)affect(ctx,c,2,(i++)*IST());}));
+    },
+    buffIfLosing(ctx){ /* +3 if you're behind at this location */
+      const L=ctx.state.locs[ctx.locIdx];
+      const mine=L.cards[ctx.side].reduce((t,c)=>t+cardPower(c,ctx.locIdx,ctx.side),0);
+      const theirs=L.cards[other(ctx.side)].reduce((t,c)=>t+cardPower(c,ctx.locIdx,other(ctx.side)),0);
+      if(mine<theirs)affect(ctx,ctx.card,3);
+    },
+    energizer(ctx){ /* +1 energy next turn */
+      ctx.state.nextEnergyBonus[ctx.side]=(ctx.state.nextEnergyBonus[ctx.side]||0)+1;
+      if(ctx.card.el)fx.effect(ctx.card.def.interactFx||"electric",ctx.card.el);
+      if(ctx.side==="me")toast("+1 Energy next turn!");
+    },
+    stealPower(ctx){ /* drain 2 from a random enemy here into this card */
+      const foes=ctx.state.locs[ctx.locIdx].cards[other(ctx.side)];
+      if(foes.length){
+        const t=foes[Math.floor(ctx.rng()*foes.length)];
+        affect(ctx,t,-2);
+        affect(ctx,ctx.card,2,IST()*2);
+      }
+    },
+    smiteStrongest(ctx){ /* -3 to the highest-power enemy card here */
+      const foes=[...ctx.state.locs[ctx.locIdx].cards[other(ctx.side)]];
+      if(foes.length){
+        foes.sort((a,b)=>cardPower(b,ctx.locIdx,other(ctx.side))-cardPower(a,ctx.locIdx,other(ctx.side)));
+        affect(ctx,foes[0],-3);
+      }
+    },
+    doubleSmite(ctx){ /* -2 to two random enemy cards here (can repeat) */
+      const foes=ctx.state.locs[ctx.locIdx].cards[other(ctx.side)];
+      if(foes.length)for(let i=0;i<2;i++)
+        affect(ctx,foes[Math.floor(ctx.rng()*foes.length)],-2,i*IST()*2);
+    },
+    globalSmite(ctx){ /* -1 to every enemy card everywhere */
+      let i=0;
+      ctx.state.locs.forEach(L=>L.cards[other(ctx.side)].forEach(c=>
+        affect(ctx,c,-1,(i++)*IST())));
+    },
+    buffOtherLocations(ctx){ /* +1 to your cards at the OTHER locations */
+      let i=0;
+      ctx.state.locs.forEach((L,li)=>{if(li!==ctx.locIdx)
+        L.cards[ctx.side].forEach(c=>affect(ctx,c,1,(i++)*IST()));});
+    },
+  },
+  ongoing: {
+    packBonus(card,locIdx,side,state){ /* +1 per other friendly card here */
+      return state.locs[locIdx].cards[side].length-1;
+    },
+    aloneBonus(card,locIdx,side,state){ /* +2 while it's your only card here */
+      return state.locs[locIdx].cards[side].length===1?2:0;
+    },
+    perEnemyHere(card,locIdx,side,state){ /* +1 per enemy card here */
+      return state.locs[locIdx].cards[other(side)].length;
+    },
+  },
+};
+
+/* LOCATION EFFECTS — referenced by `effectId` in config.js locations.
+   perCard: fn(card, locIdx, side, state) => power bonus for each card here.
+   onCardRevealed: fn(ctx) fired when any card reveals at this location.   */
+const LOCATION_EFFECTS = {
+  buffAll:      {perCard:()=>2},
+  chillAll:     {perCard:()=>-1},
+  crowdedBonus: {perCard:(c,li,side,st)=>1}, /* +1 per card you have = +1 each */
+  forgeFirst:   {onCardRevealed(ctx){
+    const L=ctx.state.locs[ctx.locIdx];
+    if(!L.forgeUsed) L.forgeUsed={};
+    if(!L.forgeUsed[ctx.side]){L.forgeUsed[ctx.side]=true;
+      ctx.card.permBuff+=3;
+      fx.effect(L.def.fxKey||"fire",ctx.card.el);
+      fx.floatText(ctx.card.el,"+3","#ffd257");}
+  }},
+};
+
+/* ============================================================================
+   GAME STATE
+   ========================================================================= */
+const G = {
+  mode:"ai",          // 'ai' | 'host' | 'guest'
+  isHost:true,        // canonical role for reveal priority + shared rng
+  phase:"menu",       // 'staging' | 'waiting' | 'revealing' | 'over'
+  turn:0,
+  rng:Math.random,    // replaced by seeded rng each match
+  locs:[],            // [{def, cards:{me:[],op:[]}, forgeUsed}]
+  me:{energy:0, hand:[], deck:[], staged:[]},   // staged: {card, locIdx}
+  op:{energy:0, hand:[], deck:[], staged:[], handCount:0},
+  playOrder:0,        // increments as I stage cards this turn
+  oppReady:false, meReady:false, pendingPlays:{}, // plays buffered by turn #
+};
+
+function makeCard(def,owner){
+  return {uid:++uidSeq+"_"+owner, def, owner, permBuff:0, revealed:false, el:null};
+}
+function buildDeck(owner){
+  const deck=[];
+  /* your saved active deck drives your draws; AI/opponent uses the default */
+  const ids=(owner==="me")?Decks.activeCards():null;
+  if(ids)ids.forEach(id=>{const def=CFG.cards.find(c=>c.id===id);
+    if(def&&deck.length<R.deckSize)deck.push(makeCard(def,owner));});
+  /* pad short decks with defaults, respecting the 2-copies-per-card cap */
+  let i=0,guard=0;
+  while(deck.length<R.deckSize&&guard++<400){
+    const def=CFG.cards[i%CFG.cards.length];i++;
+    if(deck.filter(c=>c.def.id===def.id).length<2)deck.push(makeCard(def,owner));
+  }
+  return shuffle(deck); // local shuffle: hands/decks stay private in multiplayer
+}
+function drawOne(side){
+  const P=G[side];
+  if(side==="op"&&G.mode!=="ai"){ /* remote opponent: we only track a count */
+    P.handCount=Math.min(R.maxHand,P.handCount+1);return true;}
+  if(P.deck.length&&P.hand.length<R.maxHand){
+    const c=P.deck.pop();P.hand.push(c);
+    if(side==="me"){audio.drawCard();
+      (G.pendingDrawAnims??=[]).push(c.uid);} /* animated after next render */
+    return true;
+  }
+  return false;
+}
+
+/* Effective power = base + permanent buffs + ongoing abilities + location fx */
+function cardPower(card,locIdx,side){
+  let p=card.def.power+card.permBuff;
+  if(card.def.abilityType==="ongoing"&&ABILITIES.ongoing[card.def.abilityId])
+    p+=ABILITIES.ongoing[card.def.abilityId](card,locIdx,side,G);
+  const eff=G.locs[locIdx].def.effectId;
+  if(eff&&LOCATION_EFFECTS[eff]&&LOCATION_EFFECTS[eff].perCard)
+    p+=LOCATION_EFFECTS[eff].perCard(card,locIdx,side,G);
+  /* team synergy passive */
+  if(synergyActive(card,locIdx,side))p+=(R.teamSynergyBonus??1);
+  return p;
+}
+function locTotal(locIdx,side){
+  let t=G.locs[locIdx].cards[side].reduce((s,c)=>s+cardPower(c,locIdx,side),0);
+  if(side==="me") /* live preview: staged cards count toward my displayed total */
+    t+=G.me.staged.filter(s=>!s.super&&s.locIdx===locIdx)
+        .reduce((s,x)=>s+x.card.def.power+x.card.permBuff,0);
+  return t;
+}
+function locationsWon(){ /* returns {me,op} counts of strictly-won locations */
+  let me=0,op=0;
+  G.locs.forEach((L,i)=>{
+    const a=L.cards.me.reduce((s,c)=>s+cardPower(c,i,"me"),0);
+    const b=L.cards.op.reduce((s,c)=>s+cardPower(c,i,"op"),0);
+    if((L.cards.me.length||L.cards.op.length)){if(a>b)me++;else if(b>a)op++;}
+  });
+  return {me,op};
+}
+
+/* When a card lands at a location whose effect changes its power, show it:
+   the location's fxKey library effect + a floating +N/-N + its sound.
+   Fires when you drop a card (instant feedback) and when opponent cards
+   land during the reveal. Purely visual — power math already handles it. */
+function locPlacementFx(card,locIdx,side,delayMs=0){
+  const L=G.locs[locIdx];
+  const eff=L.def.effectId&&LOCATION_EFFECTS[L.def.effectId];
+  if(!eff||!eff.perCard)return;
+  const d=eff.perCard(card,locIdx,side,G);
+  if(!d)return;
+  setTimeout(()=>{
+    if(!card.el)return;
+    fx.effect(L.def.fxKey||(d>0?"buff":"ice"),card.el);
+    fx.floatText(card.el,(d>0?"+":"")+d,d>0?"#4ade80":"#ff5d5d");
+  },delayMs);
+}
+
+/* ============================================================================
+   TEAMS & SUPER MOVES
+   Get rules.superTeamSize members of one team onto a location and a SUPER
+   button appears there while staging. Activating consumes all remaining
+   energy and ends card plays for the turn; each team fires once per match.
+   superAttack  → destroys a random enemy card there (shared-RNG in MP)
+   superRevive  → returns a chosen card from your graveyard, with a halo
+   ========================================================================= */
+function superCost(){return R.superCostMode==="all"?null:(R.superCost??3);}
+function superUsage(P,tid){return P.supersUsed[tid]||{n:0,turn:-99};}
+function eligibleSupers(side){
+  const res=[],P=G[side];
+  if(P.staged.some(x=>x.super))return res; /* one Super per turn */
+  const cost=superCost();
+  if(P.energy<(cost??1))return res;
+  G.locs.forEach((L,li)=>{
+    const counts={};
+    const add=c=>{const t=teamOf(c.def.id);if(t)counts[t.id]=(counts[t.id]||0)+1;};
+    L.cards[side].forEach(add);
+    if(R.superCountStaged!==false) /* cards you just staged count too */
+      P.staged.forEach(x=>{if(!x.super&&x.locIdx===li)add(x.card);});
+    Object.entries(counts).forEach(([tid,n])=>{
+      const u=superUsage(P,tid);
+      if(n>=(R.superTeamSize||3)
+        &&u.n<(R.superUsesPerTeam??1)
+        &&G.turn>u.turn+(R.superCooldownTurns??0))
+        res.push({teamId:tid,locIdx:li,usesLeft:(R.superUsesPerTeam??1)-u.n});});
+  });
+  return res;
+}
+function activateSuper(su){
+  const team=CFG.teams[su.teamId];
+  audio.play("superCharge");
+  if(team.super==="superRevive"){
+    if(!G.me.grave.length){toast("Your graveyard is empty!");return;}
+    if(G.locs[su.locIdx].cards.me.length>=R.maxCardsPerLocation){toast("No space to revive here!");return;}
+    openGrave("pick",su);
+  }else{
+    if(!G.locs[su.locIdx].cards.op.length){toast("No enemies there to attack!");return;}
+    stageSuper(su);
+  }
+}
+function stageSuper(su,graveIdx){
+  const cost=superCost();
+  const prevUsage=G.me.supersUsed[su.teamId]?{...G.me.supersUsed[su.teamId]}:null;
+  G.me.staged.push({super:true,teamId:su.teamId,locIdx:su.locIdx,
+    graveIdx,prevEnergy:G.me.energy,prevUsage});
+  const u=superUsage(G.me,su.teamId);
+  G.me.supersUsed[su.teamId]={n:u.n+1,turn:G.turn};
+  G.me.energy=cost===null?0:G.me.energy-cost; /* "all" mode: the super IS your play */
+  banner("SUPER ARMED!");
+  renderAll();
+  fx.burst($("energyNum"),"#ffd257",12);
+}
+function cancelSuper(entry){
+  const i=G.me.staged.indexOf(entry);
+  if(i<0||G.phase!=="staging")return;
+  G.me.staged.splice(i,1);
+  if(entry.prevUsage)G.me.supersUsed[entry.teamId]=entry.prevUsage;
+  else delete G.me.supersUsed[entry.teamId];
+  G.me.energy=entry.prevEnergy||0;
+  audio.click();
+  renderAll();
+}
+/* graveyard overlay: mode "view" (browse) or "pick" (choose a revive target) */
+function openGrave(mode,su){
+  const grave=G.me.grave;
+  $("graveTitle").textContent=mode==="pick"?"✨ CHOOSE A CARD TO REVIVE":"💀 GRAVEYARD";
+  $("graveHint").textContent=mode==="pick"
+    ?"It returns to the battlefield wearing a halo."
+    :"Cards destroyed in battle rest here.";
+  const grid=$("graveGrid");grid.innerHTML="";
+  if(!grave.length){const t=document.createElement("div");t.className="subtext";
+    t.textContent="(empty)";grid.appendChild(t);}
+  grave.forEach((c,gi)=>{
+    const dc=document.createElement("div");dc.className="dcard";
+    dc.appendChild(createCardEl({def:c.def,permBuff:c.permBuff,halo:false,el:null}));
+    dc.onclick=()=>{
+      if(mode!=="pick")return;
+      audio.play("revive");
+      closeOverlay("graveOverlay");
+      stageSuper(su,gi);
+    };
+    grid.appendChild(dc);
+    if(dc.animate)dc.animate([{opacity:0,transform:"translateY(18px)"},{opacity:1,transform:"none"}],
+      {duration:240,delay:gi*60,easing:"ease-out",fill:"backwards"});
+  });
+  showOverlay("graveOverlay",{stagger:false});
+}
+$("btnGraveClose").onclick=()=>{audio.click();closeOverlay("graveOverlay");};
+$("graveCount").onclick=()=>{if(G.phase!=="menu")openGrave("view");};
+
+/* destruction: shatter animation, then the card moves to its owner's grave */
+async function destroyCard(card,locIdx,side){
+  const L=G.locs[locIdx];if(!L)return;
+  if(L.cards[side].indexOf(card)<0)return;
+  if(card.el&&card.el.isConnected&&card.el.animate){
+    fx.floatText(card.el,"DESTROYED","#ff5d5d");
+    fx.dust(card.el,18);
+    fx.burst(card.el,"#ff5d5d",14);
+    card.el.animate([
+      {transform:"scale(1)",opacity:1,filter:"brightness(2.2)"},
+      {transform:"scale(1.22) rotate(7deg)",opacity:.85,offset:.4},
+      {transform:"scale(.05) rotate(-18deg)",opacity:0}
+    ],{duration:520,easing:"ease-in"});
+    await sleep(520);
+  }
+  const j=L.cards[side].indexOf(card);
+  if(j>=0)L.cards[side].splice(j,1);
+  card.el=null;
+  G[side].grave.push(card);
+  (L.scorch=L.scorch||{me:0,op:0})[side]++; /* leave a mark where it fell */
+  if(side==="me")fx.damageFlash(); /* losing a card should sting */
+  renderAll();
+}
+
+/* full-screen transparent-video finisher (config.superFinishers) */
+function playFinisher(kind){
+  const src=(CFG.superFinishers||{})[kind];
+  if(!src)return;
+  const v=document.createElement("video");
+  v.src=src;v.muted=true;v.playsInline=true;
+  v.style.cssText="position:absolute;inset:0;width:100%;height:100%;"+
+    "object-fit:cover;z-index:59;pointer-events:none;opacity:.95;";
+  frame.appendChild(v);
+  let done=false;
+  const fin=()=>{if(done)return;done=true;v.remove();};
+  v.onended=fin;v.onerror=fin;
+  let pr=null;try{pr=v.play();}catch(e){}
+  if(pr&&pr.catch)pr.catch(fin);else if(!pr)fin();
+  setTimeout(fin,2600); /* safety */
+}
+
+/* letterbox bars + team-colored tint for super cinematics */
+let cineEls=null;
+function cineOn(color){
+  if(cineEls)return;
+  const top=document.createElement("div");top.className="cineBar";top.style.top="0";
+  const bot=document.createElement("div");bot.className="cineBar";bot.style.bottom="0";
+  const tint=document.createElement("div");tint.className="cineTint";
+  tint.style.background=`radial-gradient(circle at 50% 45%, ${color||"#ffd257"}33, transparent 70%)`;
+  frame.append(top,bot,tint);
+  cineEls=[top,bot,tint];
+  if(top.animate){
+    [top,bot].forEach(b=>b.animate([{height:"0px"},{height:"7.5%"}],
+      {duration:340,easing:"ease-out",fill:"forwards"}));
+    tint.animate([{opacity:0},{opacity:1}],{duration:400,fill:"forwards"});
+  }else{top.style.height=bot.style.height="7.5%";tint.style.opacity="1";}
+}
+function cineOff(){
+  if(!cineEls)return;
+  const els=cineEls;cineEls=null;
+  els.forEach(el=>{
+    if(el.animate){const a=el.animate([{opacity:1},{opacity:0}],{duration:280,fill:"forwards"});
+      a.onfinish=()=>el.remove();setTimeout(()=>el.remove(),400);}
+    else el.remove();});
+}
+
+/* resolves during the reveal sequence (deterministic across clients) */
+async function resolveSuper(s,side){
+  const tok=G.matchSeq;
+  const team=(CFG.teams||{})[s.teamId];if(!team)return;
+  if(G.mode!=="ai"&&side==="op"){ /* remote player's usage ledger */
+    const u=superUsage(G.op,s.teamId);
+    G.op.supersUsed[s.teamId]={n:u.n+1,turn:G.turn};
+  }
+  const L=G.locs[s.locIdx];if(!L)return;
+  const isRevive=team.super==="superRevive";
+  G._combo=0; /* supers are their own spectacle */
+  cineOn(team.color); /* letterbox: this is an ultimate */
+  bannerEpic((side==="me"?"":"ENEMY ")+(team.name||"TEAM").toUpperCase()
+    +(isRevive?" — SUPER REVIVE!":" — SUPER ATTACK!"));
+  audio.play("superCharge");
+  /* charge-up: every team member at the location ignites */
+  const members=L.cards[side].filter(c=>{const t=teamOf(c.def.id);return t&&t.id===s.teamId;});
+  members.forEach((c,i)=>setTimeout(()=>{
+    if(c.el){fx.glow(c.el);fx.burst(c.el,team.color||"#ffd257",12);}},i*140));
+  await sleep(950);
+  if(tok!==G.matchSeq||!G.locs.length){cineOff();return;}
+  if(!isRevive){
+    /* halo cards are protected from destruction (rules.reviveProtected) */
+    const foes=L.cards[other(side)].filter(c=>!(R.reviveProtected&&c.halo));
+    if(!foes.length){toast("Super fizzled — no valid targets!");cineOff();return;}
+    const target=foes[Math.floor(G.rng()*foes.length)]; /* shared rng: MP-safe */
+    members.forEach((c,i)=>setTimeout(()=>{
+      if(c.el&&target.el)fx.interact(team.fx||"fire",c.el,target.el);},i*110));
+    await sleep(650);
+    if(tok!==G.matchSeq){cineOff();return;}
+    audio.play("superBlast");
+    playFinisher("superAttack"); /* full-screen detonation overlay */
+    if(target.el){
+      fx.sprite((CFG.fxLibrary[team.fx]||{}).impact||"fireWide",target.el,{scale:3.2});
+      fx.shake();
+    }
+    await destroyCard(target,s.locIdx,other(side));
+  }else{
+    const grave=G[side].grave;
+    const gc=grave[s.graveIdx]||grave[0];
+    if(!gc){toast("Super fizzled — graveyard empty!");cineOff();return;}
+    if(L.cards[side].length>=R.maxCardsPerLocation){toast("Super fizzled — no space!");cineOff();return;}
+    grave.splice(grave.indexOf(gc),1);
+    gc.halo=true;gc.revealed=true;
+    L.cards[side].push(gc);
+    audio.play("revive");
+    playFinisher("superRevive"); /* full-screen light bloom */
+    renderAll();
+    if(gc.el){
+      gc.el.classList.add("flipIn");
+      fx.sprite("aura",gc.el,{scale:2.8});
+      fx.burst(gc.el,"#ffe9a8",24);
+      fx.floatText(gc.el,"REVIVED","#ffe9a8");
+    }
+    bannerEpic(gc.def.name.toUpperCase()+" HAS BEEN REVIVED!");
+    await sleep(700);
+  }
+  renderAll();
+  cineOff();
+  await sleep((R.revealStaggerMs||900)*0.5);
+}
+
+/* ── concede / forfeit: ends the match immediately, records the result ── */
+function endMatchConceded(winnerSide,reason){
+  if(G.phase==="over"||G.phase==="menu")return;
+  G.matchSeq=(G.matchSeq||0)+1; /* kill any in-flight reveal/intro loops */
+  stopAmbient();frame.classList.remove("finalTurn");
+  audio.tension(false);cineOff();
+  G.phase="over";
+  const w=locationsWon();
+  const myTotal=G.locs.reduce((s,L,i)=>s+locTotal(i,"me"),0);
+  const opTotal=G.locs.reduce((s,L,i)=>s+locTotal(i,"op"),0);
+  const outcome=winnerSide==="me"?"win":"lose";
+  const title=$("resultTitle");
+  title.className=outcome;
+  title.textContent=outcome==="win"?"VICTORY!":"DEFEAT";
+  $("resultDetail").innerHTML=esc(reason)+
+    `<br>Locations — You: ${w.me} · Opponent: ${w.op}`+
+    `<br>Total power — You: ${myTotal} · Opponent: ${opTotal}`;
+  Stats.record(outcome,{mode:G.mode,me:myTotal,op:opTotal,locs:w.me+"-"+w.op,outcome});
+  bannerEpic(reason);
+  audio.gameEnd(outcome==="win");
+  if(outcome==="win")fx.confetti();
+  $("btnQuit").style.display="none";
+  renderAll();
+  updateRematchBtn();
+  setTimeout(()=>showOverlay("overOverlay"),1100);
+}
+/* ── instant rematch: AI restarts at once; MP does an offer/accept
+   handshake over the still-open data channel, then the host re-inits
+   with a fresh seed (same flow as the original match start) ── */
+function updateRematchBtn(){
+  const b=$("btnRematch");
+  b.disabled=false;b.style.display="";
+  if(G.mode!=="ai"){
+    const alive=net.conn&&net.conn.open&&!G.remoteGone;
+    if(!alive){b.style.display="none";return;}
+    if(G.rematch.me){b.disabled=true;b.textContent="⏳ Waiting for opponent…";return;}
+    if(G.rematch.op){b.textContent="🔄 Accept Rematch!";return;}
+  }
+  b.textContent="🔄 Instant Rematch";
+}
+function hostRematchInit(){
+  const seed=Math.floor(Math.random()*1e9);
+  net.send({t:"init",seed,cfg:netCfg(),name:Users.current()});
+  setTimeout(()=>startMatch("host",{seed}),250);
+}
+$("btnRematch").onclick=()=>{
+  audio.unlock();audio.click();
+  if(G.mode==="ai"){startMatch("ai");return;}
+  if(!(net.conn&&net.conn.open)){toast("Opponent is gone");updateRematchBtn();return;}
+  G.rematch.me=true;
+  net.send({t:"rematch"});
+  if(G.rematch.op&&G.isHost)hostRematchInit();
+  else if(!G.rematch.op)toast("Rematch offered!");
+  updateRematchBtn();
+};
+
+$("btnQuit").onclick=()=>{audio.click();
+  if(G.phase==="menu"||G.phase==="over")return;
+  showOverlay("quitOverlay");};
+$("btnConcedeNo").onclick=()=>{audio.click();closeOverlay("quitOverlay");};
+$("btnConcedeYes").onclick=()=>{audio.click();
+  closeOverlay("quitOverlay",()=>{
+    if(G.mode!=="ai")net.send({t:"bye"});
+    endMatchConceded("op","YOU CONCEDED");
+  });};
+
+/* ============================================================================
+   MATCH SETUP + TURN ENGINE
+   ========================================================================= */
+function startMatch(mode,{seed,locIds}={}){
+  G.matchSeq=(G.matchSeq||0)+1; /* invalidates any in-flight reveal loop */
+  G.rematch={me:false,op:false};G.remoteGone=false;
+  G.mode=mode;G.isHost=(mode!=="guest");
+  G.phase="staging";G.turn=0;G.playOrder=0;
+  G.meReady=G.oppReady=false;G.pendingPlays={};
+  G.rng=mulberry32(seed??Math.floor(Math.random()*1e9));
+
+  /* pick locations: host/AI-mode picks randomly (seeded), guest receives ids */
+  let pool;
+  if(locIds){pool=locIds.map(id=>CFG.locations.find(l=>l.id===id));}
+  else{pool=shuffle([...CFG.locations],G.rng).slice(0,R.locationCount);}
+  G.chosenLocIds=pool.map(l=>l.id);
+  G.locs=pool.map(def=>({def,cards:{me:[],op:[]},forgeUsed:{},scorch:{me:0,op:0}}));
+
+  G.nextEnergyBonus={me:0,op:0};
+  G.me={energy:0,hand:[],deck:buildDeck("me"),staged:[],grave:[],supersUsed:{}};
+  G.op={energy:0,hand:[],deck:mode==="ai"?buildDeck("op"):[],staged:[],
+        handCount:R.startingHand,grave:[],supersUsed:{}};
+  for(let i=0;i<R.startingHand;i++){drawOne("me");if(mode==="ai")drawOne("op");}
+
+  fx.preload();
+  /* battle soundtrack: first picked location with a music entry, else default */
+  const mkey=G.chosenLocIds.find(id=>(CFG.music||{})[id])||"battle";
+  audio.setMusic(mkey);
+  $("oppName").textContent = mode==="ai"?"AI":(G.remoteName||"Opponent");
+  $("turnMax").textContent = R.turns;
+  buildBoardDOM();
+  hideOverlays();
+  $("btnQuit").style.display="inline-block";
+  startAmbient();
+  startWeather();
+  matchIntro(); /* plate flips + VS banner, then turn 1 */
+}
+
+/* battle intro: locations flip in one by one, then the VS banner */
+function matchIntro(){
+  const tok=G.matchSeq;
+  document.querySelectorAll(".locPlate").forEach((pl,i)=>{
+    if(!pl.animate)return;
+    pl.animate([
+      {opacity:0,transform:"rotateY(88deg) scale(.8)"},
+      {opacity:1,transform:"rotateY(0deg) scale(1)"}
+    ],{duration:420,delay:150+i*170,easing:"cubic-bezier(.2,.8,.3,1.15)",fill:"backwards"});
+  });
+  setTimeout(()=>{
+    if(tok!==G.matchSeq)return;
+    const opp=G.mode==="ai"?"THE AI":(G.remoteName||"OPPONENT").toUpperCase();
+    bannerEpic(Users.current().toUpperCase()+"  VS  "+opp);
+    audio.play("superCharge");
+  },650);
+  setTimeout(()=>{if(tok===G.matchSeq)nextTurn();},1500);
+}
+
+function nextTurn(){
+  G.turn++;G.playOrder=0;G.meReady=false;G.oppReady=false;
+  const e=R.energyPerTurn(G.turn);
+  G.me.energy=e+(G.nextEnergyBonus.me||0);
+  G.op.energy=e+(G.nextEnergyBonus.op||0);
+  G.nextEnergyBonus={me:0,op:0};
+  drawOne("me");
+  if(G.mode==="ai")drawOne("op");else drawOne("op"); /* remote: bumps count */
+  G.phase="staging";
+  if(G.turn>=R.turns){ /* last turn: crank the tension */
+    frame.classList.add("finalTurn");
+    audio.tension(true);
+    bannerEpic("FINAL TURN!");
+  }else banner("TURN "+G.turn);
+  renderAll();
+}
+
+/* Player pressed End Turn */
+function endTurnPressed(){
+  if(G.phase!=="staging")return;
+  audio.click();
+  G.meReady=true;G.phase="waiting";
+  renderAll();
+  if(G.mode==="ai"){
+    setTimeout(()=>{aiTakeTurn();beginReveal();},R.aiThinkMs);
+  }else{
+    net.send({t:"plays",turn:G.turn,plays:G.me.staged.map((s,i)=>
+      s.super?{super:true,teamId:s.teamId,locIdx:s.locIdx,graveIdx:s.graveIdx,order:i}
+             :{cardId:s.card.def.id,locIdx:s.locIdx,order:i})});
+    if(!maybeBeginReveal())toast("Waiting for opponent…",2000);
+  }
+}
+function onOppPlays(msg){
+  /* buffered by turn number: the opponent may finish revealing slightly
+     earlier and send next turn's plays before we advance — never lose them */
+  G.pendingPlays[msg.turn]=msg.plays;
+  G.op.handCount=Math.max(0,G.op.handCount-msg.plays.filter(p=>!p.super).length);
+  maybeBeginReveal();
+}
+function maybeBeginReveal(){
+  if(G.phase==="waiting"&&G.meReady&&G.pendingPlays[G.turn]!==undefined){beginReveal();return true;}
+  return false;
+}
+
+/* Reveal phase: leader (more locations won) reveals first; tie → host first.
+   Deterministic across clients: same order + shared seeded rng.             */
+async function beginReveal(){
+  const tok=G.matchSeq; /* abort cleanly if the match ends/disconnects mid-reveal */
+  G.phase="revealing";renderAll();
+  /* materialize opponent's staged plays */
+  let oppStaged;
+  if(G.mode==="ai"){oppStaged=G.op.staged;}
+  else{const plays=G.pendingPlays[G.turn]||[];delete G.pendingPlays[G.turn];
+    oppStaged=plays.slice().sort((a,b)=>a.order-b.order)
+      .map(p=>p.super
+        ?{super:true,teamId:p.teamId,locIdx:p.locIdx,graveIdx:p.graveIdx}
+        :{card:makeCard(CFG.cards.find(c=>c.id===p.cardId),"op"),locIdx:p.locIdx});}
+  G.op.staged=oppStaged;
+
+  const w=locationsWon();
+  const hostWon = G.isHost? w.me : w.op, guestWon = G.isHost? w.op : w.me;
+  const hostFirst = hostWon>=guestWon; /* canonical: same on both clients */
+  const meFirst = G.isHost ? hostFirst : !hostFirst;
+  const order=[...(meFirst?["me","op"]:["op","me"])];
+
+  for(const side of order){
+    /* supers detonate last, after that side's card reveals */
+    const staged=[...G[side].staged].sort((a,b)=>(a.super?1:0)-(b.super?1:0));
+    G[side].staged=[];
+    for(const s of staged){
+      if(tok!==G.matchSeq)return; /* match was torn down mid-reveal */
+      if(s.super)await resolveSuper(s,side);
+      else await revealCard(s.card,s.locIdx,side);
+    }
+  }
+  if(tok!==G.matchSeq)return;
+  G.op.staged=[];G.me.staged=[];
+  renderAll();
+
+  if(G.turn>=R.turns)endMatch();
+  else nextTurn();
+}
+
+async function revealCard(card,locIdx,side){
+  if(!G.locs[locIdx])return; /* board already torn down */
+  card.revealed=true;
+  G.locs[locIdx].cards[side].push(card);
+  renderAll();
+  /* opponent cards fly in face-down from the top bar, then flip + dust */
+  if(side==="op"&&card.el)
+    await flyCard(card.def,$("oppPill").getBoundingClientRect(),card.el,
+                  {facedown:true,dur:330,arc:26});
+  const heavy=card.def.cost>=(R.heavyCostMin||5);
+  if(card.el){
+    card.el.classList.add("flipIn");
+    if(heavy)card.el.style.animationDuration="0.85s"; /* slow-mo entrance */
+    fx.dust(card.el,heavy?26:12);
+    if(heavy)fx.shake();
+  }
+  if(side==="op")locPlacementFx(card,locIdx,side,300); /* mine showed on drop */
+  audio.reveal(card.def.sfx);
+  /* team signature stinger layers in just after the reveal sound */
+  const tmb=teamOf(card.def.id);
+  if(tmb&&tmb.bark)setTimeout(()=>audio.play(tmb.bark),150);
+  G._combo=0;
+  if(card.def.abilityType==="onReveal"&&ABILITIES.onReveal[card.def.abilityId]){
+    ABILITIES.onReveal[card.def.abilityId]({card,locIdx,side,state:G,rng:G.rng,fx});
+    const hits=G._combo;
+    if(hits>=2)setTimeout(()=>{
+      if(card.el)fx.comboPop(card.el,hits);
+      audio.play("leadChange");
+    },hits*(R.interactStaggerMs||130)+320);
+  }
+  const eff=G.locs[locIdx].def.effectId;
+  if(eff&&LOCATION_EFFECTS[eff]&&LOCATION_EFFECTS[eff].onCardRevealed)
+    LOCATION_EFFECTS[eff].onCardRevealed({card,locIdx,side,state:G,rng:G.rng,fx});
+  if(card.def.vfx&&card.def.vfx!=="none")fx.play(card.def.vfx,card.el);
+  renderAll();
+  await sleep(R.revealStaggerMs);
+}
+
+async function endMatch(){
+  G.phase="over";
+  $("btnQuit").style.display="none";
+  frame.classList.remove("finalTurn");
+  audio.tension(false);
+  const tok=G.matchSeq;
+  const w=locationsWon();
+  const myTotal=G.locs.reduce((s,L,i)=>s+locTotal(i,"me"),0);
+  const opTotal=G.locs.reduce((s,L,i)=>s+locTotal(i,"op"),0);
+  let outcome;
+  if(w.me>w.op)outcome="win";else if(w.op>w.me)outcome="lose";
+  else if(myTotal>opTotal)outcome="win";else if(opTotal>myTotal)outcome="lose";
+  else outcome="draw";
+  const title=$("resultTitle");
+  title.className=outcome;
+  title.textContent=outcome==="win"?"VICTORY!":outcome==="lose"?"DEFEAT":"DRAW";
+  $("resultDetail").innerHTML=
+    `Locations won — You: <b style="color:var(--accent)">${w.me}</b> · `+
+    `Opponent: <b style="color:var(--bad)">${w.op}</b><br>`+
+    `Total power — You: <b id="rollMe">0</b> · Opponent: <b id="rollOp">0</b>`;
+  /* MVP: your highest-power survivor */
+  let mvp=null,mvpP=-1;
+  G.locs.forEach((L,i)=>L.cards.me.forEach(c=>{
+    const p=cardPower(c,i,"me");if(p>mvpP){mvpP=p;mvp=c;}}));
+  if(mvp)$("resultDetail").innerHTML+=
+    `<br>MVP: <b style="color:var(--gold)">${esc(mvp.def.name)}</b> (${mvpP} power)`;
+  Stats.record(outcome,{mode:G.mode,me:myTotal,op:opTotal,locs:w.me+"-"+w.op,outcome});
+  renderAll();
+  /* verdict stamps slam onto each location, one at a time */
+  await sleep(350);
+  for(let i=0;i<G.locs.length;i++){
+    if(tok!==G.matchSeq)return;
+    const a=locTotal(i,"me"),b=locTotal(i,"op");
+    const plate=$("plate"+i);if(!plate)continue;
+    const res=a>b?"won":b>a?"lost":"tie";
+    const st=document.createElement("div");
+    st.className="verdictStamp "+res;
+    st.textContent=res.toUpperCase();
+    plate.appendChild(st);
+    if(st.animate)st.animate(
+      [{transform:"translate(-50%,-50%) rotate(-11deg) scale(3)",opacity:0},
+       {transform:"translate(-50%,-50%) rotate(-11deg) scale(1)",opacity:1}],
+      {duration:260,easing:"cubic-bezier(.2,.8,.3,1.2)"});
+    if(res==="won"){fx.shockwave(plate,"#ffd257");audio.locationWon();}
+    else if(res==="lost"){fx.sprite("smoke",plate,{scale:1.1});audio.play("boom");}
+    else audio.play("click");
+    fx.dust(plate,10);
+    await sleep(640);
+  }
+  if(tok!==G.matchSeq)return;
+  bannerEpic(outcome==="win"?"VICTORY!":outcome==="lose"?"DEFEAT":"DRAW");
+  audio.gameEnd(outcome==="win");
+  if(outcome==="win")fx.confetti();
+  await sleep(1300);
+  if(tok!==G.matchSeq)return;
+  updateRematchBtn();
+  showOverlay("overOverlay");
+  countUp($("rollMe"),myTotal);   /* totals roll up as the screen lands */
+  countUp($("rollOp"),opTotal);
+}
+/* animated number roll-up for the results screen */
+function countUp(el,target,dur=850){
+  if(!el)return;
+  if(!window.requestAnimationFrame){el.textContent=target;return;}
+  const t0=performance.now();
+  const step=(t)=>{
+    const k=Math.min(1,(t-t0)/dur);
+    el.textContent=Math.round(target*(k*(2-k))); /* ease-out */
+    if(k<1)requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+/* ============================================================================
+   RENDERER — rebuilds DOM from state. Small scale, so full re-render is fine.
+   ========================================================================= */
+function buildBoardDOM(){
+  boardEl.innerHTML="";
+  G.locs.forEach((L,i)=>{
+    const col=document.createElement("div");
+    col.className="location";col.dataset.idx=i;
+    col.innerHTML=
+      `<div class="slots op" id="slotsOp${i}">`+`<div class="slot"></div>`.repeat(R.maxCardsPerLocation)+`</div>`+
+      `<div class="locPlate" id="plate${i}" style="background-image:url('${L.def.imageURL}')">`+
+        `<div class="totals"><span class="totOp" id="totOp${i}">0</span></div>`+
+        `<div class="locName">${esc(L.def.name)}</div>`+
+        `<div class="locEffect">${esc(L.def.effectText)}</div>`+
+        `<div class="totals"><span class="totMe" id="totMe${i}">0</span></div>`+
+      `</div>`+
+      `<div class="slots me" id="slotsMe${i}">`+`<div class="slot"></div>`.repeat(R.maxCardsPerLocation)+`</div>`;
+    boardEl.appendChild(col);
+  });
+}
+
+/* which team (if any) a card id belongs to */
+function teamOf(defId){
+  for(const [id,t] of Object.entries(CFG.teams||{}))
+    if(t.members&&t.members.includes(defId))return {id,...t};
+  return null;
+}
+/* team synergy: true when teamSynergyMin+ teammates stand together here */
+function synergyActive(card,locIdx,side){
+  const tm=teamOf(card.def.id);if(!tm)return false;
+  const L=G.locs[locIdx];if(!L)return false;
+  const n=L.cards[side].filter(c=>{const t=teamOf(c.def.id);return t&&t.id===tm.id;}).length;
+  return n>=(R.teamSynergyMin||2);
+}
+
+function createCardEl(card,{power=null,staged=false,facedown=false}={}){
+  const el=document.createElement("div");
+  el.className="card"+(staged?" staged":"")+(facedown?" facedown":"");
+  const p=power??(card.def.power+card.permBuff);
+  const cls=p>card.def.power?" buffed":p<card.def.power?" nerfed":"";
+  el.innerHTML=
+    `<div class="art" style="background-image:url('${card.def.imageURL}')"></div>`+
+    `<div class="badge cost">${card.def.cost}</div>`+
+    `<div class="badge power${cls}">${p}</div>`+
+    `<div class="cName">${esc(card.def.name)}</div>`;
+  el.style.setProperty("--sheenD",(Math.random()*8).toFixed(2)+"s");
+  if(card.def.cost>=(R.foilCostMin||6))el.classList.add("foil"); /* premium finish */
+  /* team membership dot */
+  const tm=teamOf(card.def.id);
+  if(tm&&!facedown){
+    const dot=document.createElement("div");dot.className="teamDot";
+    dot.style.background=tm.color;dot.style.color=tm.color;dot.title=tm.name;
+    el.appendChild(dot);
+  }
+  /* revived cards wear a halo */
+  if(card.halo&&!facedown){
+    el.classList.add("haloed");
+    el.insertAdjacentHTML("beforeend",'<div class="haloRing"></div>');
+  }
+  card.el=el;
+  return el;
+}
+
+function showInfo(card){
+  const info=$("cardInfo");
+  if(!card){info.innerHTML="Drag a card to a location";return;}
+  info.innerHTML=`<b>${card.def.name}</b> — ${card.def.cost}⚡ ${card.def.power}💪 `+
+    (card.def.abilityText||"No ability.");
+}
+
+function renderAll(){
+  if(!G.locs.length)return;
+  /* HUD */
+  $("turnNow").textContent=Math.min(G.turn,R.turns);
+  $("oppHand").textContent=G.mode==="ai"?G.op.hand.length:G.op.handCount;
+  bumpNum($("energyNum"),G.me.energy);
+  $("deckCount").textContent="Deck: "+G.me.deck.length;
+  $("graveCount").textContent="💀 "+G.me.grave.length;
+  const btn=$("btnEnd");
+  btn.disabled=G.phase!=="staging";
+  btn.textContent=G.phase==="waiting"?"Waiting…":G.phase==="revealing"?"Revealing…":"End Turn";
+
+  /* Board */
+  const w=locationsWon();
+  G.locs.forEach((L,i)=>{
+    const opSlots=$("slotsOp"+i).children, meSlots=$("slotsMe"+i).children;
+    for(const s of opSlots)s.innerHTML="";
+    for(const s of meSlots)s.innerHTML="";
+    const markSynergy=(el,c,side)=>{
+      if(synergyActive(c,i,side)){const d=el.querySelector(".teamDot");
+        if(d)d.classList.add("synergy");}};
+    L.cards.op.forEach((c,k)=>{if(k<opSlots.length){
+      const el=createCardEl(c,{power:cardPower(c,i,"op")});
+      el.onclick=()=>inspectCard(c,{locIdx:i,side:"op"});
+      markSynergy(el,c,"op");
+      opSlots[k].appendChild(el);}});
+    L.cards.me.forEach((c,k)=>{if(k<meSlots.length){
+      const el=createCardEl(c,{power:cardPower(c,i,"me")});
+      el.onclick=()=>inspectCard(c,{locIdx:i,side:"me"});
+      markSynergy(el,c,"me");
+      meSlots[k].appendChild(el);}});
+    /* my staged (unrevealed) cards — dashed gold, click to take back */
+    let k=L.cards.me.length;
+    G.me.staged.filter(s=>!s.super&&s.locIdx===i).forEach(s=>{
+      if(k<meSlots.length){
+        const el=createCardEl(s.card,{staged:true});
+        el.style.cursor="pointer";
+        el.onclick=()=>retractStaged(s);
+        meSlots[k++].appendChild(el);
+      }});
+    /* scorch marks: fallen cards leave a skull where they died */
+    const putScorch=(slots,used,n)=>{
+      for(let q=0;q<n&&used<slots.length;q++,used++){
+        const m=document.createElement("div");m.className="scorchMark";
+        m.textContent="💀";slots[used].appendChild(m);}};
+    putScorch(opSlots,L.cards.op.length,(L.scorch&&L.scorch.op)||0);
+    putScorch(meSlots,k,(L.scorch&&L.scorch.me)||0);
+    /* totals — leader glows gold */
+    const a=locTotal(i,"me"),b=locTotal(i,"op");
+    const tm=$("totMe"+i),to=$("totOp"+i);
+    bumpNum(tm,a);bumpNum(to,b);
+    tm.classList.toggle("lead",a>b);to.classList.toggle("lead",b>a);
+    const plate=$("plate"+i);
+    /* the lead changed hands mid-reveal — make it felt */
+    const lead=a>b?"me":b>a?"op":"tie";
+    if(L._lead!==undefined&&L._lead!==lead&&lead!=="tie"&&G.phase==="revealing"){
+      fx.shockwave(plate,lead==="me"?"#38b6ff":"#ff5d5d");
+      audio.play("leadChange");
+    }
+    L._lead=lead;
+    plate.classList.toggle("won",G.phase==="over"&&a>b);
+    plate.classList.toggle("lost",G.phase==="over"&&b>a);
+    /* the battlefield cracks under a lopsided fight */
+    const gap=Math.abs(a-b);
+    plate.classList.toggle("crack1",gap>=5&&gap<10);
+    plate.classList.toggle("crack2",gap>=10);
+    /* SUPER buttons: appear when a full team stands together here */
+    plate.querySelectorAll(".superBtn").forEach(x=>x.remove());
+    plate.classList.remove("superArmed");
+    const armed=G.me.staged.find(x=>x.super&&x.locIdx===i);
+    if(armed){
+      plate.classList.add("superArmed");
+      if(G.phase==="staging"){
+        const bn=document.createElement("button");bn.className="superBtn";
+        bn.textContent="✖ CANCEL SUPER";
+        bn.onclick=(e)=>{e.stopPropagation();cancelSuper(armed);};
+        plate.appendChild(bn);
+      }
+    }else if(G.phase==="staging"){
+      const su=eligibleSupers("me").find(x=>x.locIdx===i);
+      if(su){
+        const team=CFG.teams[su.teamId];
+        const bn=document.createElement("button");bn.className="superBtn";
+        bn.textContent="⚡ "+(team.super==="superRevive"?"SUPER REVIVE":"SUPER ATTACK")
+          +((R.superUsesPerTeam??1)>1?" ("+su.usesLeft+")":"");
+        bn.style.boxShadow=`0 0 16px ${team.color||"#ffd257"}`;
+        bn.onclick=(e)=>{e.stopPropagation();activateSuper(su);};
+        plate.appendChild(bn);
+      }
+    }
+  });
+
+  /* Hand */
+  handEl.innerHTML="";
+  G.me.hand.forEach((c,idx)=>{
+    const hc=document.createElement("div");
+    hc.className="hcard"+(c.def.cost>G.me.energy?" unaffordable":"");
+    hc.dataset.idx=idx;
+    hc.appendChild(createCardEl(c));
+    handEl.appendChild(hc);
+  });
+  /* animate freshly drawn cards flying out of the deck */
+  if(G.pendingDrawAnims&&G.pendingDrawAnims.length){
+    const q=[...G.pendingDrawAnims];G.pendingDrawAnims.length=0;
+    const deckRect=$("deckCount").getBoundingClientRect();
+    q.forEach((uid,i)=>setTimeout(()=>{
+      const c=G.me.hand.find(x=>x.uid===uid);
+      if(c&&c.el)flyCard(c.def,deckRect,c.el,{dur:360,arc:44});
+    },i*100));
+  }
+}
+
+/* ============================================================================
+   DRAG & DROP — pointer events work for both mouse and touch.
+   ========================================================================= */
+let drag=null;
+const ghost=$("dragGhost");
+
+function canStage(card,locIdx){
+  if(G.phase!=="staging")return false;
+  if(R.superBlocksPlays&&G.me.staged.some(x=>x.super))return false; /* legacy rule */
+  if(card.def.cost>G.me.energy)return false;
+  const used=G.locs[locIdx].cards.me.length+G.me.staged.filter(s=>s.locIdx===locIdx).length;
+  return used<R.maxCardsPerLocation;
+}
+function stageCard(handIdx,locIdx){
+  const card=G.me.hand[handIdx];
+  if(!card||!canStage(card,locIdx))return;
+  /* throw from wherever the card visually is (drag ghost or hand slot) */
+  const src=(drag&&drag.active)?ghost:card.el;
+  const fromRect=src&&src.getBoundingClientRect?src.getBoundingClientRect():null;
+  G.me.hand.splice(handIdx,1);
+  G.me.staged.push({card,locIdx});
+  G.me.energy-=card.def.cost;
+  renderAll();
+  fx.burst($("energyNum"),"#7db4ff",7); /* energy crackles as it's spent */
+  const heavy=card.def.cost>=(R.heavyCostMin||5);
+  if(fromRect&&card.el){
+    flyCard(card.def,fromRect,card.el,{dur:heavy?340:270,arc:heavy?44:30}).then(()=>{
+      audio.playCard();
+      if(card.el){fx.dust(card.el,heavy?26:12);slam(card.el);}
+      if(heavy){fx.shake();audio.play("boom");}
+      locPlacementFx(card,locIdx,"me",120); /* e.g. Frozen Wastes: ice + "-1" */
+    });
+  }else{audio.playCard();locPlacementFx(card,locIdx,"me",120);}
+}
+function retractStaged(s){
+  if(G.phase!=="staging")return;
+  const i=G.me.staged.indexOf(s);
+  if(i<0)return;
+  const fromRect=s.card.el?s.card.el.getBoundingClientRect():null;
+  G.me.staged.splice(i,1);
+  G.me.hand.push(s.card);
+  G.me.energy+=s.card.def.cost;
+  audio.click();
+  renderAll();
+  /* fly back from the board to its new spot in hand */
+  if(fromRect&&s.card.el)flyCard(s.card.def,fromRect,s.card.el,{dur:290,arc:26});
+}
+function locUnderPoint(x,y){
+  ghost.style.display="none"; // don't hit-test the ghost itself
+  const el=document.elementFromPoint(x,y);
+  ghost.style.display=drag&&drag.active?"block":"none";
+  const col=el&&el.closest?el.closest(".location"):null;
+  return col?+col.dataset.idx:null;
+}
+
+handEl.addEventListener("pointerdown",(e)=>{
+  audio.unlock();
+  const hc=e.target.closest(".hcard");
+  if(!hc)return;
+  const idx=+hc.dataset.idx, card=G.me.hand[idx];
+  if(!card)return;
+  showInfo(card);
+  hc.classList.remove("tilt");hc.style.transform="";
+  /* outside the staging phase a press can only be an inspect tap */
+  drag={idx,card,hc,sx:e.clientX,sy:e.clientY,active:false,
+        inspectOnly:G.phase!=="staging"};
+  e.preventDefault();
+});
+window.addEventListener("pointermove",(e)=>{
+  if(!drag||drag.inspectOnly)return;
+  if(!drag.active){
+    if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)<10)return;
+    if(drag.card.def.cost>G.me.energy){toast("Not enough energy!");drag=null;return;}
+    drag.active=true;
+    drag.hc.classList.add("dragging");
+    ghost.innerHTML="";ghost.appendChild(createCardEl(drag.card));
+    ghost.style.display="block";
+    document.querySelectorAll(".slots.me .slot").forEach(s=>s.classList.add("droppable"));
+  }
+  const f=frame.getBoundingClientRect();
+  ghost.style.left=(e.clientX-f.left)+"px";
+  ghost.style.top=(e.clientY-f.top)+"px";
+  const li=locUnderPoint(e.clientX,e.clientY);
+  document.querySelectorAll(".location").forEach((c,i)=>{
+    c.querySelectorAll(".slot").forEach(s=>s.classList.toggle("hot",i===li&&canStage(drag.card,li)));
+  });
+},{passive:false});
+window.addEventListener("pointerup",(e)=>{
+  if(!drag)return;
+  if(!drag.active){inspectCard(drag.card);} /* tap without drag = inspect */
+  else{
+    const li=locUnderPoint(e.clientX,e.clientY);
+    if(li!=null&&canStage(drag.card,li))stageCard(drag.idx,li);
+    else if(li!=null)toast("Location is full!");
+  }
+  ghost.style.display="none";
+  document.querySelectorAll(".slot").forEach(s=>s.classList.remove("droppable","hot"));
+  document.querySelectorAll(".hcard").forEach(h=>h.classList.remove("dragging"));
+  drag=null;
+});
+window.addEventListener("pointercancel",()=>{
+  if(!drag)return;
+  ghost.style.display="none";
+  document.querySelectorAll(".slot").forEach(s=>s.classList.remove("droppable","hot"));
+  document.querySelectorAll(".hcard").forEach(h=>h.classList.remove("dragging"));
+  drag=null;
+});
+/* hover previews card text on desktop */
+handEl.addEventListener("pointerover",(e)=>{
+  const hc=e.target.closest(".hcard");
+  if(hc&&G.me.hand[+hc.dataset.idx])showInfo(G.me.hand[+hc.dataset.idx]);
+});
+/* 3D tilt: hand cards lean toward the cursor */
+handEl.addEventListener("pointermove",(e)=>{
+  if(drag&&drag.active)return;
+  const hc=e.target.closest(".hcard");
+  handEl.querySelectorAll(".hcard.tilt").forEach(h=>{
+    if(h!==hc){h.classList.remove("tilt");h.style.transform="";}});
+  if(!hc||e.pointerType==="touch")return;
+  const r=hc.getBoundingClientRect();
+  const nx=(e.clientX-r.left)/r.width-0.5, ny=(e.clientY-r.top)/r.height-0.5;
+  hc.classList.add("tilt");
+  hc.style.transform=
+    `translateY(-14px) scale(1.07) rotateY(${(nx*16).toFixed(1)}deg) rotateX(${(-ny*13).toFixed(1)}deg)`;
+},{passive:true});
+handEl.addEventListener("pointerleave",()=>{
+  handEl.querySelectorAll(".hcard.tilt").forEach(h=>{
+    h.classList.remove("tilt");h.style.transform="";});
+},{passive:true});
+
+/* ============================================================================
+   MOCK AI — two styles, chosen by rules.aiStyle in config.js:
+     "random" — plays random affordable cards to random open locations
+     "smart"  — greedy heuristic: values abilities + location effects and
+                targets contested locations (default)
+   ========================================================================= */
+function aiOpenLocs(){
+  return G.locs.map((L,i)=>i).filter(i=>
+    G.locs[i].cards.op.length+G.op.staged.filter(s=>s.locIdx===i).length<R.maxCardsPerLocation);
+}
+function aiTakeTurn(){
+  G.op.staged=[];
+  if((R.aiStyle||"smart")==="random")aiRandom();else aiSmart();
+}
+function aiRandom(){
+  const P=G.op;
+  for(const card of shuffle([...P.hand])){
+    if(card.def.cost>P.energy)continue;
+    if(Math.random()<0.2)continue; // a little unpredictability
+    const open=aiOpenLocs();
+    if(!open.length)break;
+    const li=open[Math.floor(Math.random()*open.length)];
+    P.staged.push({card,locIdx:li});
+    P.hand.splice(P.hand.indexOf(card),1);
+    P.energy-=card.def.cost;
+  }
+}
+/* Rough value of an ability if played at locIdx right now (op perspective) */
+const AI_ABILITY_VALUE={
+  royalDecree:    ( )=>2*G.locs.reduce((n,L)=>n+L.cards.op.length,0),
+  buffIfLosing:   (li)=>{const m=G.locs[li].cards.me.reduce((t,c)=>t+cardPower(c,li,"me"),0);
+                         const o=G.locs[li].cards.op.reduce((t,c)=>t+cardPower(c,li,"op"),0);
+                         return o<m?3:0;},
+  energizer:      ( )=>G.turn<R.turns?2:0,
+  stealPower:     (li)=>G.locs[li].cards.me.length?4:0,
+  smiteStrongest: (li)=>G.locs[li].cards.me.length?3:0,
+  doubleSmite:    (li)=>G.locs[li].cards.me.length?4:0,
+  globalSmite:    ( )=>G.locs.reduce((n,L)=>n+L.cards.me.length,0),
+  buffOtherLocations:(li)=>G.locs.reduce((n,L,i)=>i===li?n:n+L.cards.op.length,0),
+  aloneBonus:     (li)=>G.locs[li].cards.op.length===0?2:0,
+  perEnemyHere:   (li)=>G.locs[li].cards.me.length,
+  buffAdjacent:   (li)=>2*Math.min(3,G.locs[li].cards.op.length),
+  freezeEnemies:  (li)=>2*G.locs[li].cards.me.length,
+  powerPerEnemy:  (li)=>G.locs[li].cards.me.length,
+  smiteRandomEnemy:(li)=>G.locs[li].cards.me.length?3:0,
+  buffAllFriendly:( )=>G.locs.reduce((n,L)=>n+L.cards.op.length,0),
+  packBonus:      (li)=>G.locs[li].cards.op.length,
+  drawCard:       ( )=>1.5,
+};
+function aiSmart(){
+  const P=G.op;
+  let played=true;
+  while(played){
+    played=false;
+    let best=null;
+    for(const card of P.hand){
+      if(card.def.cost>P.energy)continue;
+      for(const li of aiOpenLocs()){
+        /* board math: my visible total vs op total incl. already-staged */
+        const meT=G.locs[li].cards.me.reduce((t,c)=>t+cardPower(c,li,"me"),0);
+        const opT=G.locs[li].cards.op.reduce((t,c)=>t+cardPower(c,li,"op"),0)
+                 +P.staged.filter(s=>s.locIdx===li).reduce((t,s)=>t+s.card.def.power,0);
+        let v=card.def.power;
+        const eff=G.locs[li].def.effectId;
+        if(eff&&LOCATION_EFFECTS[eff]&&LOCATION_EFFECTS[eff].perCard)
+          v+=LOCATION_EFFECTS[eff].perCard(card,li,"op",G);
+        if(card.def.abilityId&&AI_ABILITY_VALUE[card.def.abilityId])
+          v+=AI_ABILITY_VALUE[card.def.abilityId](li);
+        /* prefer stacking teammates: synergy now, supers later */
+        const tmv=teamOf(card.def.id);
+        if(tmv){const n=G.locs[li].cards.op.filter(c=>{
+            const t2=teamOf(c.def.id);return t2&&t2.id===tmv.id;}).length;
+          if(n>0)v+=n*1.5+(R.teamSynergyBonus??1);}
+        const diff=opT-meT;
+        if(diff<0&&diff+v>=0)v+=6;        // this play flips a losing location
+        else if(diff<0&&diff+v>-3)v+=3;   // gets us close
+        if(diff>6)v-=4;                   // don't pile onto a runaway win
+        v+=Math.random()*1.5;             // slight unpredictability
+        if(!best||v>best.v)best={card,li,v};
+      }
+    }
+    if(best){
+      P.staged.push({card:best.card,locIdx:best.li});
+      P.hand.splice(P.hand.indexOf(best.card),1);
+      P.energy-=best.card.def.cost;
+      played=true;
+    }
+  }
+  /* super moves: use the first worthwhile one this turn */
+  for(const su of eligibleSupers("op")){
+    const team=CFG.teams[su.teamId];
+    const pay=()=>{
+      const u=superUsage(G.op,su.teamId);
+      G.op.supersUsed[su.teamId]={n:u.n+1,turn:G.turn};
+      const c=superCost();
+      P.energy=c===null?0:Math.max(0,P.energy-c);
+    };
+    if(team.super==="superRevive"){
+      if(G.op.grave.length&&G.locs[su.locIdx].cards.op.length<R.maxCardsPerLocation){
+        let gi=0; /* strongest fallen card */
+        G.op.grave.forEach((c,i)=>{if(c.def.power>G.op.grave[gi].def.power)gi=i;});
+        P.staged.push({super:true,teamId:su.teamId,locIdx:su.locIdx,graveIdx:gi});
+        pay();break;
+      }
+    }else if(G.locs[su.locIdx].cards.me.length){
+      P.staged.push({super:true,teamId:su.teamId,locIdx:su.locIdx});
+      pay();break;
+    }
+  }
+}
+
+/* ============================================================================
+   NET MANAGER — PeerJS matchmaking codes (host generates, guest joins).
+   Only *plays* are exchanged; hands and decks stay private. A shared RNG
+   seed keeps random ability targets identical on both clients.
+   Messages: {t:"init",seed} {t:"plays",turn,plays:[{cardId,locIdx,order}]}
+   ========================================================================= */
+/* Everything a host shares so BOTH players see identical games: rules,
+   card stats AND art (uploaded data-URL images travel too), stage names/
+   backgrounds/effects, teams, and music choices. Missing music files on
+   the guest's side fall back gracefully (battle track → synth). */
+function netCfg(){
+  const cfg={
+    rules:JSON.parse(JSON.stringify(CFG.rules)),
+    cards:CFG.cards,
+    locations:CFG.locations,
+    teams:CFG.teams,
+    music:CFG.music,
+  };
+  try{
+    const size=JSON.stringify(cfg).length;
+    if(size>4_000_000)toast("Heads up: custom images are large — match start may be slow",3200);
+  }catch(e){}
+  return cfg;
+}
+
+class NetManager{
+  constructor(){this.peer=null;this.conn=null;this._cfgBackup=null;}
+  /* snapshot local config before a host's settings are merged in, so the
+     guest's own rules/cards come back after the match */
+  backupCfg(){if(!this._cfgBackup)
+    this._cfgBackup={rules:JSON.parse(JSON.stringify(CFG.rules)),cards:CFG.cards,
+      locations:CFG.locations,teams:CFG.teams,music:CFG.music};}
+  restoreCfg(){if(this._cfgBackup){
+    Object.keys(CFG.rules).forEach(k=>{if(k!=="energyPerTurn")delete CFG.rules[k];});
+    Object.assign(CFG.rules,this._cfgBackup.rules);
+    CFG.cards=this._cfgBackup.cards;
+    CFG.locations=this._cfgBackup.locations;
+    CFG.teams=this._cfgBackup.teams;
+    CFG.music=this._cfgBackup.music;
+    this._cfgBackup=null;}}
+  _code(){const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let s="";
+    for(let i=0;i<CFG.net.codeLength;i++)s+=chars[Math.floor(Math.random()*chars.length)];
+    return s;}
+  host(){
+    this.close(); /* drop any previous peer before opening a new one */
+    const attempt=()=>{
+      const code=this._code();
+      this.peer=new Peer(CFG.net.codePrefix+code);
+      this.peer.on("open",()=>{$("hostCode").textContent=code;});
+      this.peer.on("error",(err)=>{
+        if(err.type==="unavailable-id"){this.peer.destroy();attempt();}
+        else{toast("Network error: "+err.type,2500);}
+      });
+      this.peer.on("connection",(conn)=>{
+        this._bind(conn);
+        conn.on("open",()=>{
+          $("hostStatus").textContent="Opponent found! Starting…";
+          const seed=Math.floor(Math.random()*1e9);
+          /* full shared config: stats, art, stages, teams, music */
+          this.send({t:"init",seed,cfg:netCfg(),name:Users.current()});
+          setTimeout(()=>startMatch("host",{seed}),400);
+        });
+      });
+    };
+    attempt();
+  }
+  join(codeRaw){
+    this.close(); /* drop any previous peer before opening a new one */
+    let code=codeRaw.trim().toUpperCase();
+    if(code.startsWith(CFG.net.codePrefix))code=code.slice(CFG.net.codePrefix.length);
+    if(!code){toast("Enter a code first");return;}
+    toast("Connecting…",2500);
+    this.peer=new Peer();
+    this.peer.on("error",(err)=>{
+      if(err.type==="peer-unavailable")toast("No match found for that code",2500);
+      else toast("Network error: "+err.type,2500);
+    });
+    this.peer.on("open",()=>{
+      const conn=this.peer.connect(CFG.net.codePrefix+code,{reliable:true});
+      this._bind(conn);
+      conn.on("open",()=>{this.send({t:"hello",name:Users.current()});
+        toast("Connected! Host is starting…",2000);});
+    });
+  }
+  _bind(conn){
+    this.conn=conn;
+    conn.on("data",(d)=>handleNet(d));
+    conn.on("close",()=>{
+      if(G.phase!=="over"&&G.phase!=="menu")
+        endMatchConceded("me","OPPONENT LEFT THE MATCH");
+      else if(G.phase==="over"){ /* results screen: kill the rematch offer */
+        G.remoteGone=true;
+        toast("Opponent left",2000);
+        updateRematchBtn();
+      }
+    });
+  }
+  send(obj){if(this.conn&&this.conn.open)this.conn.send(obj);}
+  close(){if(this.peer){try{this.peer.destroy();}catch(e){}}this.peer=null;this.conn=null;
+    this.restoreCfg();}
+}
+const net=new NetManager();
+
+function handleNet(d){
+  switch(d.t){
+    case "bye": endMatchConceded("me","OPPONENT CONCEDED!");break;
+    case "rematch":
+      G.rematch=G.rematch||{me:false,op:false};
+      G.rematch.op=true;
+      if(G.phase==="over"){
+        if(G.rematch.me&&G.isHost)hostRematchInit();
+        else if(!G.rematch.me){toast("Opponent wants a rematch!",2600);audio.play("buff");}
+        updateRematchBtn();
+      }
+      break;
+    case "hello": G.remoteName=d.name;
+      if($("oppName"))$("oppName").textContent=d.name||"Opponent";break;
+    case "init":
+      if(d.cfg){net.backupCfg();
+        Object.assign(CFG.rules,d.cfg.rules||{});
+        if(d.cfg.cards)CFG.cards=d.cfg.cards;
+        if(d.cfg.locations)CFG.locations=d.cfg.locations;
+        if(d.cfg.teams)CFG.teams=d.cfg.teams;
+        if(d.cfg.music)CFG.music=d.cfg.music;}
+      G.remoteName=d.name||G.remoteName;
+      startMatch("guest",{seed:d.seed});break;
+    case "plays": onOppPlays(d);break;
+  }
+}
+
+/* ============================================================================
+   CARD INSPECTOR — tap any card (in hand or placed by either player) to see
+   an enlarged view with its ability text and current power.
+   ========================================================================= */
+function inspectCard(card,ctx={}){
+  audio.click();
+  const holder=$("inspCardHolder");holder.innerHTML="";
+  const onBoard=ctx.locIdx!=null;
+  const cur=onBoard?cardPower(card,ctx.locIdx,ctx.side):card.def.power+(card.permBuff||0);
+  /* dummy wrapper so we don't clobber the live card's .el reference */
+  holder.appendChild(createCardEl({def:card.def,permBuff:card.permBuff||0,el:null},{power:cur}));
+  $("inspName").textContent=card.def.name;
+  let st=`Cost ${card.def.cost} · Base Power ${card.def.power}`;
+  if(onBoard){
+    st+=` · Now ${cur} at ${G.locs[ctx.locIdx].def.name}`;
+    st+=` (${ctx.side==="me"?"yours":"opponent's"})`;
+  }
+  const tm=teamOf(card.def.id);
+  if(tm)st+=` · ${tm.name}`;
+  if(tm&&onBoard&&synergyActive(card,ctx.locIdx,ctx.side))
+    st+=` · Synergy +${R.teamSynergyBonus??1}`;
+  if(card.halo)st+=" · 😇 Halo"+(R.reviveProtected?" (protected)":"");
+  $("inspStats").textContent=st;
+  $("inspText").textContent=card.def.abilityText||"No ability — pure stats.";
+  /* energetic entrance: backdrop fade, card spins up from the deck with
+     overshoot, text cascades in, flash sprite + whoosh at the apex */
+  showOverlay("inspectOverlay",{stagger:false});
+  audio.play("whoosh");
+  if(holder.animate){
+    holder.animate([
+      {opacity:0,transform:"scale(.15) rotateY(140deg) translateY(90px)"},
+      {opacity:1,transform:"scale(1.12) rotateY(-16deg) translateY(-8px)",offset:.62},
+      {transform:"scale(.98) rotateY(6deg)",offset:.85},
+      {transform:"scale(1) rotateY(0deg) translateY(0px)"}
+    ],{duration:560,easing:"cubic-bezier(.2,.8,.3,1)"});
+    ["inspName","inspStats","inspText"].forEach((tid,i)=>
+      $(tid).animate([{opacity:0,transform:"translateY(18px)"},{opacity:1,transform:"translateY(0)"}],
+        {duration:300,delay:240+i*80,easing:"ease-out",fill:"backwards"}));
+  }
+  setTimeout(()=>{const c=holder.firstChild;if(c)fx.sprite("flash",c,{scale:1.5});},330);
+}
+function closeInspector(){
+  const holder=$("inspCardHolder");
+  if(holder.animate&&holder.firstChild)
+    holder.animate([{transform:"scale(1) rotate(0deg)",opacity:1},
+                    {transform:"scale(.2) rotate(12deg) translateY(90px)",opacity:0}],
+      {duration:230,easing:"ease-in"});
+  audio.click();
+  closeOverlay("inspectOverlay");
+}
+$("inspectOverlay").addEventListener("click",closeInspector);
+
+/* ============================================================================
+   LEADERBOARD — local, persisted in localStorage. Tracks W/L/D, streaks,
+   best power, and match history. (A global online board needs a backend.)
+   ========================================================================= */
+const Stats={
+  _key(){return "gaam_stats::"+Users.current();},
+  loadFor(user){try{return JSON.parse(localStorage.getItem("gaam_stats::"+user))||{};}catch(e){return{};}},
+  load(){try{return JSON.parse(localStorage.getItem(this._key()))||{};}catch(e){return{};}},
+  save(o){try{localStorage.setItem(this._key(),JSON.stringify(o));}catch(e){}},
+  record(outcome,detail){
+    const o=this.load();
+    o.games=(o.games||0)+1;
+    o[outcome]=(o[outcome]||0)+1;
+    o.streak=outcome==="win"?(o.streak||0)+1:0;
+    o.bestStreak=Math.max(o.bestStreak||0,o.streak);
+    o.bestPower=Math.max(o.bestPower||0,detail.me||0);
+    o.history=[{d:Date.now(),...detail},...(o.history||[])].slice(0,25);
+    this.save(o);
+  },
+};
+function showLeaderboard(){
+  const o=Stats.load();
+  $("lbSummary").innerHTML=`<b style="color:var(--gold)">${Users.current()}</b><br>`+
+    `Wins <b style="color:var(--good)">${o.win||0}</b> · `+
+    `Losses <b style="color:var(--bad)">${o.lose||0}</b> · Draws ${o.draw||0}<br>`+
+    `Streak ${o.streak||0} (best ${o.bestStreak||0}) · Best total power ${o.bestPower||0}`;
+  const rows=$("lbRows");rows.innerHTML="";
+  /* local account rankings, best record first */
+  {
+    const h=document.createElement("div");h.className="lbHead";
+    h.textContent="PLAYERS (THIS DEVICE)";rows.appendChild(h);
+    const users=(Users.load()||{list:[]}).list
+      .map(u=>{const st=Stats.loadFor(u);
+        return {u,w:st.win||0,l:st.lose||0,d:st.draw||0,best:st.bestPower||0};})
+      .sort((a,b)=>b.w-a.w||a.l-b.l||b.best-a.best);
+    users.forEach((r,i)=>{
+      const d=document.createElement("div");d.className="lbRow";
+      const me=r.u===Users.current();
+      d.innerHTML=`<span>#${i+1}${me?" ★":""}</span><span style="${me?"color:var(--gold)":""}">${esc(r.u)}</span>`+
+        `<span class="win">${r.w}W</span><span class="lose">${r.l}L</span>`+
+        `<span>${r.d}D</span><span>best ${r.best}</span>`;
+      rows.appendChild(d);});
+  }
+  const hist=o.history||[];
+  const head=(t)=>{const h=document.createElement("div");h.className="lbHead";h.textContent=t;rows.appendChild(h);};
+  const mk=(h,rank)=>{const d=document.createElement("div");d.className="lbRow";
+    d.innerHTML=`<span>${rank!=null?"#"+rank:new Date(h.d).toLocaleDateString()}</span>`+
+      `<span>${h.mode==="ai"?"vs AI":"vs Human"}</span><span>${h.locs} locs</span>`+
+      `<span>${h.me} pwr</span><span class="${h.outcome}">${h.outcome.toUpperCase()}</span>`;
+    rows.appendChild(d);};
+  if(hist.length){
+    head("TOP MATCHES (YOUR TOTAL POWER)");
+    [...hist].sort((a,b)=>b.me-a.me).slice(0,5).forEach((h,i)=>mk(h,i+1));
+    head("RECENT");
+    hist.slice(0,8).forEach(h=>mk(h));
+  }else head("No matches yet — go play!");
+  closeOverlay("menuOverlay",()=>showOverlay("lbOverlay"));
+}
+
+/* ============================================================================
+   USER ACCOUNTS — local profiles stored on this device. Each account gets
+   its own decks (max 5), stats, and leaderboard row. The current account's
+   name is shown to multiplayer opponents.
+   ========================================================================= */
+const Users={
+  KEY:"gaam_users",
+  load(){try{return JSON.parse(localStorage.getItem(this.KEY));}catch(e){return null;}},
+  save(o){try{localStorage.setItem(this.KEY,JSON.stringify(o));}catch(e){}},
+  init(){
+    let o=this.load();
+    if(!o){
+      o={list:["Player"],current:"Player"};this.save(o);
+      /* migrate pre-account decks/stats into the first profile */
+      try{
+        const d=localStorage.getItem("gaam_decks");
+        if(d&&!localStorage.getItem("gaam_decks::Player"))localStorage.setItem("gaam_decks::Player",d);
+        const st=localStorage.getItem("gaam_stats");
+        if(st&&!localStorage.getItem("gaam_stats::Player"))localStorage.setItem("gaam_stats::Player",st);
+      }catch(e){}
+    }
+    return o;
+  },
+  current(){const o=this.load()||this.init();return o.current||"Player";},
+  setCurrent(n){const o=this.load();o.current=n;this.save(o);},
+  create(name){
+    const o=this.load();name=(name||"").trim().slice(0,14);
+    if(!name)return "Enter a name";
+    if(o.list.some(x=>x.toLowerCase()===name.toLowerCase()))return "That name is taken";
+    o.list.push(name);o.current=name;this.save(o);return null;
+  },
+  remove(name){
+    const o=this.load();o.list=o.list.filter(x=>x!==name);
+    if(!o.list.length)o.list=["Player"];
+    if(o.current===name)o.current=o.list[0];
+    this.save(o);
+    try{localStorage.removeItem("gaam_decks::"+name);
+        localStorage.removeItem("gaam_stats::"+name);}catch(e){}
+  },
+};
+Users.init();
+function refreshUserBtn(){$("userBtnName").textContent=Users.current();}
+function openAccounts(){
+  closeOverlay("menuOverlay",()=>{showOverlay("userOverlay");renderAccounts();});
+}
+function renderAccounts(){
+  const o=Users.load();
+  const list=$("userList");list.innerHTML="";
+  o.list.forEach(u=>{
+    const pl=document.createElement("div");
+    pl.className="deckPill"+(u===o.current?" sel":"");
+    pl.textContent=(u===o.current?"★ ":"")+u;
+    pl.onclick=()=>{audio.click();Users.setCurrent(u);refreshUserBtn();renderAccounts();
+      toast("Signed in as "+u);};
+    list.appendChild(pl);
+  });
+}
+$("btnUser").onclick=()=>{audio.unlock();audio.click();openAccounts();};
+$("btnUserCreate").onclick=()=>{audio.click();
+  const err=Users.create($("newUserName").value);
+  if(err){toast(err);return;}
+  $("newUserName").value="";refreshUserBtn();renderAccounts();
+  audio.play("buff");toast("Account created!");};
+$("btnUserDelete").onclick=()=>{audio.click();
+  const o=Users.load();
+  if(o.list.length<=1){toast("Can't delete the last account");return;}
+  Users.remove(o.current);refreshUserBtn();renderAccounts();toast("Account deleted");};
+$("btnUserClose").onclick=()=>{audio.click();
+  closeOverlay("userOverlay",()=>showOverlay("menuOverlay"));};
+refreshUserBtn();
+
+/* ============================================================================
+   DECK BUILDER — create, save and select decks (persisted in localStorage).
+   Your active deck is used for every match; the AI keeps the default deck.
+   Max 2 copies of a card; a deck plays best at exactly rules.deckSize cards
+   (short decks are padded with defaults at match start).
+   ========================================================================= */
+const Decks={
+  MAX:5, /* decks per account */
+  _key(){return "gaam_decks::"+Users.current();},
+  load(){try{return JSON.parse(localStorage.getItem(this._key()))||{decks:[],active:null};}
+    catch(e){return {decks:[],active:null};}},
+  save(o){try{localStorage.setItem(this._key(),JSON.stringify(o));}catch(e){}},
+  activeCards(){const o=this.load();const d=o.decks.find(x=>x.name===o.active);
+    return d&&d.cards.length?d.cards:null;},
+};
+let deckEdit={name:"My Deck",cards:[]};
+let deckFilter="all";
+
+function openDecks(){
+  const o=Decks.load();
+  const cur=o.decks.find(x=>x.name===o.active)||o.decks[0];
+  deckEdit=cur?{name:cur.name,cards:[...cur.cards]}:{name:"My Deck",cards:[]};
+  closeOverlay("menuOverlay",()=>{showOverlay("deckOverlay");renderDeckBuilder(true);});
+}
+function renderDeckBuilder(animate=false){
+  const o=Decks.load();
+  $("deckName").value=deckEdit.name;
+  $("deckBuildCount").textContent=
+    `${deckEdit.cards.length}/${R.deckSize} — tap cards below to add, tap chips to remove`;
+  /* saved deck pills */
+  const sel=$("deckSelRow");sel.innerHTML="";
+  o.decks.forEach(dk=>{
+    const pl=document.createElement("div");
+    pl.className="deckPill"+(dk.name===deckEdit.name?" sel":"");
+    pl.textContent=(dk.name===o.active?"★ ":"")+dk.name;
+    pl.onclick=()=>{audio.click();deckEdit={name:dk.name,cards:[...dk.cards]};renderDeckBuilder();};
+    sel.appendChild(pl);});
+  const np=document.createElement("div");np.className="deckPill";np.textContent="+ New";
+  np.onclick=()=>{audio.click();deckEdit={name:"Deck "+(o.decks.length+1),cards:[]};renderDeckBuilder();};
+  sel.appendChild(np);
+  /* current deck chips */
+  const cur=$("deckCurrent");cur.innerHTML="";
+  deckEdit.cards.forEach((id,idx)=>{
+    const def=CFG.cards.find(c=>c.id===id);if(!def)return;
+    const ch=document.createElement("div");ch.className="deckChip";
+    ch.innerHTML=`<span class="cc">${def.cost}</span>${esc(def.name)} ✕`;
+    ch.onclick=()=>{audio.click();deckEdit.cards.splice(idx,1);renderDeckBuilder();};
+    cur.appendChild(ch);});
+  /* team filter chips */
+  const fr=$("deckFilterRow");fr.innerHTML="";
+  const mkFilter=(id,label,color)=>{
+    const pl=document.createElement("div");pl.className="deckPill"+(deckFilter===id?" sel":"");
+    pl.textContent=label;
+    if(color&&deckFilter===id){pl.style.borderColor=color;pl.style.color=color;}
+    else if(color)pl.style.borderColor=color+"66";
+    pl.onclick=()=>{audio.click();deckFilter=id;renderDeckBuilder();};
+    fr.appendChild(pl);};
+  mkFilter("all","All");
+  Object.entries(CFG.teams||{}).forEach(([tid,t])=>mkFilter(tid,t.name,t.color));
+  /* collection grid */
+  const grid=$("deckGrid");grid.innerHTML="";
+  const shown=CFG.cards.filter(def=>{
+    if(deckFilter==="all")return true;
+    const t=teamOf(def.id);return t&&t.id===deckFilter;});
+  shown.forEach((def,gi)=>{
+    const n=deckEdit.cards.filter(x=>x===def.id).length;
+    const dc=document.createElement("div");dc.className="dcard"+(n?" maxed":"");
+    dc.appendChild(createCardEl({def,permBuff:0,el:null}));
+    if(n){const b=document.createElement("div");b.className="cnt";b.textContent="×"+n;dc.appendChild(b);}
+    dc.onclick=()=>{
+      if(deckEdit.cards.length>=R.deckSize){toast("Deck is full!");return;}
+      if(n>=2){toast("Max 2 copies of a card");return;}
+      audio.play("chime");deckEdit.cards.push(def.id);renderDeckBuilder();
+      const el=[...$("deckGrid").children][gi];if(el)slam(el);};
+    grid.appendChild(dc);
+    if(animate&&dc.animate)dc.animate(
+      [{opacity:0,transform:"translateY(20px) scale(.8)"},{opacity:1,transform:"none"}],
+      {duration:280,delay:gi*35,easing:"cubic-bezier(.2,.9,.3,1.2)",fill:"backwards"});
+  });
+}
+function saveDeck(){
+  deckEdit.name=($("deckName").value.trim()||"My Deck").slice(0,18);
+  const o=Decks.load();
+  const i=o.decks.findIndex(d=>d.name===deckEdit.name);
+  if(i<0&&o.decks.length>=Decks.MAX){toast("Max "+Decks.MAX+" decks per account");return;}
+  if(i>=0)o.decks[i]={...deckEdit};else o.decks.push({...deckEdit,cards:[...deckEdit.cards]});
+  if(!o.active)o.active=deckEdit.name;
+  Decks.save(o);audio.play("buff");
+  toast(deckEdit.cards.length===R.deckSize?"Deck saved!":`Saved (${deckEdit.cards.length}/${R.deckSize} — will be padded in play)`);
+  renderDeckBuilder();
+}
+$("btnDeckSave").onclick=saveDeck;
+$("btnDeckActive").onclick=()=>{saveDeck();const o=Decks.load();o.active=deckEdit.name;Decks.save(o);
+  toast("★ "+deckEdit.name+" is now your deck");renderDeckBuilder();};
+$("btnDeckDelete").onclick=()=>{audio.click();const o=Decks.load();
+  o.decks=o.decks.filter(d=>d.name!==deckEdit.name);
+  if(o.active===deckEdit.name)o.active=o.decks[0]?o.decks[0].name:null;
+  Decks.save(o);deckEdit={name:"My Deck",cards:[]};renderDeckBuilder();toast("Deck deleted");};
+$("btnDeckClose").onclick=()=>{audio.click();closeOverlay("deckOverlay",()=>showOverlay("menuOverlay"));};
+$("deckName").addEventListener("input",()=>{deckEdit.name=$("deckName").value;});
+
+/* ============================================================================
+   ADMIN PANEL — the in-game editor. Tweak rules and card stats live; changes
+   persist on this device (localStorage) and can be exported as a fresh
+   config.js to make them permanent for everyone.
+   ========================================================================= */
+const ADMIN_RULES=["turns","locationCount","maxCardsPerLocation","locationsToWin",
+  "deckSize","startingHand","maxHand","aiThinkMs","revealStaggerMs","interactStaggerMs",
+  "superTeamSize","superUsesPerTeam","superCooldownTurns","superCost",
+  "teamSynergyMin","teamSynergyBonus"];
+const Admin={
+  KEY:"gaam_admin",
+  applyStored(){try{
+    const ov=JSON.parse(localStorage.getItem(this.KEY));if(!ov)return;
+    Object.assign(CFG.rules,ov.rules||{});
+    (ov.cards||[]).forEach(o=>{const c=CFG.cards.find(x=>x.id===o.id);if(c)Object.assign(c,o);});
+    (ov.locations||[]).forEach(o=>{const l=CFG.locations.find(x=>x.id===o.id);if(l)Object.assign(l,o);});
+    Object.entries(ov.music||{}).forEach(([k,m])=>{
+      CFG.music=CFG.music||{};CFG.music[k]=CFG.music[k]||{};
+      if(m&&m.src!==undefined)CFG.music[k].src=m.src;});
+    Object.entries(ov.teams||{}).forEach(([k,t])=>{
+      CFG.teams=CFG.teams||{};CFG.teams[k]=Object.assign(CFG.teams[k]||{},t);});
+  }catch(e){}},
+  store(){const ov={rules:{},
+      cards:CFG.cards.map(c=>({id:c.id,name:c.name,cost:c.cost,power:c.power,imageURL:c.imageURL,
+        vfx:c.vfx,interactFx:c.interactFx,sfx:c.sfx,abilityText:c.abilityText})),
+      locations:CFG.locations.map(l=>({id:l.id,name:l.name,imageURL:l.imageURL,
+        effectId:l.effectId,fxKey:l.fxKey,effectText:l.effectText})),
+      music:Object.fromEntries(Object.entries(CFG.music||{}).map(([k,v])=>[k,{src:v.src||""}])),
+      teams:Object.fromEntries(Object.entries(CFG.teams||{}).map(([k,t])=>
+        [k,{name:t.name,super:t.super,fx:t.fx,color:t.color,members:[...(t.members||[])]}]))};
+    ADMIN_RULES.forEach(k=>ov.rules[k]=CFG.rules[k]);ov.rules.aiStyle=CFG.rules.aiStyle;
+    try{localStorage.setItem(this.KEY,JSON.stringify(ov));}catch(e){}},
+  reset(){try{localStorage.removeItem(this.KEY);}catch(e){}},
+};
+function openAdmin(){
+  frame.classList.add("wide"); /* desktop: give the editor real estate */
+  if(location.hash!=="#admin"){try{history.pushState(null,"","#admin");}catch(e){location.hash="admin";}}
+  closeOverlay("menuOverlay",()=>{showOverlay("adminOverlay");renderAdmin();});
+}
+function closeAdmin(){
+  frame.classList.remove("wide");
+  if(location.hash==="#admin"){try{history.replaceState(null,"",location.pathname+location.search);}catch(e){location.hash="";}}
+  closeOverlay("adminOverlay",()=>showOverlay("menuOverlay"));
+}
+/* deep link + browser back/forward */
+window.addEventListener("hashchange",()=>{
+  const wantsAdmin=location.hash==="#admin";
+  const isOpen=!$("adminOverlay").classList.contains("hidden");
+  if(wantsAdmin&&!isOpen&&G.phase==="menu")openAdmin();
+  else if(!wantsAdmin&&isOpen)closeAdmin();
+});
+let adminSection="rules";
+const ADMIN_SECTIONS=[["rules","⚖️ Rules"],["stages","🗺️ Stages"],["music","🎵 Music"],
+  ["teams","🛡️ Teams"],["cards","🃏 Cards"]];
+
+/* hidden-file-input button: pick an image, get a data URL back.
+   Data-URL images persist with Apply & Save and export into config.js;
+   for large art, dropping a file into assets/ and typing the path is leaner. */
+function fileBtn(onData){
+  const b=document.createElement("button");b.className="aFileBtn";
+  b.textContent="🖼 Upload";b.title="Replace this image with a file from your computer";
+  const inp=document.createElement("input");
+  inp.type="file";inp.accept="image/*";inp.style.display="none";
+  /* the input's synthetic click must not bubble back to the button —
+     that recursion is what suppressed the file dialog */
+  inp.addEventListener("click",(e)=>e.stopPropagation());
+  b.onclick=(e)=>{e.preventDefault();e.stopPropagation();inp.click();};
+  inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;
+    const rd=new FileReader();
+    rd.onload=()=>{
+      if(String(rd.result).length>1500000)
+        toast("Large image — a file in assets/ + path keeps saves small",2800);
+      onData(rd.result);};
+    rd.readAsDataURL(f);};
+  b.appendChild(inp);
+  return b;
+}
+
+function renderAdmin(){
+  /* side nav */
+  const nav=$("adminNav");nav.innerHTML="";
+  ADMIN_SECTIONS.forEach(([id,label])=>{
+    const bn=document.createElement("button");
+    bn.className="anavBtn"+(adminSection===id?" sel":"");
+    bn.textContent=label;
+    bn.onclick=()=>{audio.click();collectAdmin();adminSection=id;renderAdmin();};
+    nav.appendChild(bn);});
+  const b=$("adminBody");b.innerHTML="";
+  ({rules:renderAdminRules,stages:renderAdminStages,music:renderAdminMusic,
+    teams:renderAdminTeams,cards:renderAdminCards})[adminSection](b);
+}
+function aHead(b,t){const h=document.createElement("div");h.className="aHead";h.textContent=t;b.appendChild(h);}
+function aOpts(keys,cur){return keys.map(k=>`<option value="${esc(k)}"${k===(cur||"")?" selected":""}>${esc(k)||"—"}</option>`).join("");}
+
+function renderAdminRules(b){
+  aHead(b,"RULES");
+  ADMIN_RULES.forEach(k=>{
+    const r=document.createElement("div");r.className="aRow";
+    r.innerHTML=`<label>${k}</label><input type="number" data-rule="${k}" value="${CFG.rules[k]}">`;
+    b.appendChild(r);});
+  const ai=document.createElement("div");ai.className="aRow";
+  ai.innerHTML=`<label>aiStyle</label><select data-rule="aiStyle">
+    <option${CFG.rules.aiStyle==="smart"?" selected":""}>smart</option>
+    <option${CFG.rules.aiStyle==="random"?" selected":""}>random</option></select>`;
+  b.appendChild(ai);
+}
+
+function renderAdminStages(b){
+  aHead(b,"STAGES — 🖼 Upload replaces the background · name, effect, FX, soundtrack");
+  const fxKeys=["",...Object.keys(CFG.fxLibrary||{}),"burst","shake","glow","frost","none"];
+  const locFx=Object.keys(LOCATION_EFFECTS);
+  CFG.locations.forEach(l=>{
+    const src=(CFG.music&&CFG.music[l.id]&&CFG.music[l.id].src)||"";
+    const r=document.createElement("div");r.className="aRow";r.dataset.loc=l.id;
+    r.innerHTML=
+      `<div class="aLocThumb" style="background-image:url('${esc(l.imageURL)}')"></div>`+
+      `<input type="text" class="aCardName" data-f="name" value="${esc(l.name)}">`+
+      `<label>image</label><input type="text" data-f="imageURL" value="${esc(l.imageURL)}">`+
+      `<label>effect</label><select data-f="effectId">${aOpts(["",...locFx],l.effectId)}</select>`+
+      `<label>fx</label><select data-f="fxKey">${aOpts(fxKeys,l.fxKey)}</select>`+
+      `<input type="text" data-f="effectText" value="${esc(l.effectText)}" placeholder="effect text shown on the plate">`+
+      `<label>music</label><input type="text" data-music="${l.id}" value="${esc(src)}" placeholder="assets/music/${l.id}.mp3">`;
+    const img=r.querySelector('[data-f="imageURL"]');
+    const thumb=r.querySelector(".aLocThumb");
+    img.addEventListener("input",()=>{thumb.style.backgroundImage=`url('${img.value}')`;});
+    img.insertAdjacentElement("afterend",
+      fileBtn(data=>{img.value=data;thumb.style.backgroundImage=`url('${data}')`;
+        toast("Background loaded — Apply & Save to keep");}));
+    b.appendChild(r);});
+}
+
+function renderAdminMusic(b){
+  aHead(b,"SCREEN MUSIC");
+  [["menu","Home screen music"],["battle","Default battle music"]].forEach(([k,lbl])=>{
+    const src=(CFG.music&&CFG.music[k]&&CFG.music[k].src)||"";
+    const r=document.createElement("div");r.className="aRow";
+    r.innerHTML=`<label>${lbl}</label><input type="text" data-music="${k}" value="${esc(src)}" placeholder="assets/music/${k}.mp3">`;
+    b.appendChild(r);});
+  const note=document.createElement("div");note.className="subtext";note.style.textAlign="left";
+  note.textContent="Per-stage tracks are edited on the Stages tab. Missing files fall back to each entry's built-in synth theme, so blank is always safe.";
+  b.appendChild(note);
+}
+
+/* move a card to a team (or none) — a card belongs to at most one team */
+function assignTeam(cardId,teamId){
+  Object.values(CFG.teams||{}).forEach(t=>{
+    const i=(t.members||[]).indexOf(cardId);if(i>=0)t.members.splice(i,1);});
+  if(teamId&&CFG.teams&&CFG.teams[teamId])CFG.teams[teamId].members.push(cardId);
+}
+function renderAdminTeams(b){
+  aHead(b,"TEAMS — name, color, super type, blast FX, members");
+  const fxKeys=Object.keys(CFG.fxLibrary||{});
+  Object.entries(CFG.teams||{}).forEach(([tid,t])=>{
+    const r=document.createElement("div");r.className="aRow";r.dataset.team=tid;
+    r.innerHTML=
+      `<input type="color" data-f="color" value="${esc(t.color||"#ffd257")}" title="Team color">`+
+      `<input type="text" class="aCardName" data-f="name" value="${esc(t.name)}" style="max-width:170px">`+
+      `<label>super</label><select data-f="super">`+
+        `<option value="superAttack"${t.super==="superAttack"?" selected":""}>Attack (destroy)</option>`+
+        `<option value="superRevive"${t.super==="superRevive"?" selected":""}>Revive (graveyard)</option></select>`+
+      `<label>fx</label><select data-f="fx">${aOpts(fxKeys,t.fx)}</select>`+
+      `<div class="aTeamMembers"></div>`;
+    const mem=r.querySelector(".aTeamMembers");
+    (t.members||[]).forEach(id=>{
+      const def=CFG.cards.find(c=>c.id===id);if(!def)return;
+      const ch=document.createElement("div");ch.className="deckChip";
+      ch.style.borderColor=(t.color||"#ffd257")+"88";
+      ch.innerHTML=`${esc(def.name)} ✕`;ch.title="Remove from team";
+      ch.onclick=()=>{audio.click();assignTeam(id,null);renderAdmin();};
+      mem.appendChild(ch);});
+    /* add-a-card dropdown: everything not already on this team */
+    const add=document.createElement("select");
+    add.innerHTML=`<option value="">+ add card…</option>`+
+      CFG.cards.filter(c=>!(t.members||[]).includes(c.id))
+        .map(c=>{const cur=teamOf(c.id);
+          return `<option value="${esc(c.id)}">${esc(c.name)}${cur?" (from "+esc(cur.name)+")":""}</option>`;})
+        .join("");
+    add.onchange=()=>{if(add.value){audio.click();assignTeam(add.value,tid);renderAdmin();}};
+    mem.appendChild(add);
+    b.appendChild(r);});
+  const note=document.createElement("div");note.className="subtext";note.style.textAlign="left";
+  note.textContent="A card can only be on one team — adding it here removes it from its old team. "
+    +"You can also assign teams per-card on the Cards tab. Changes persist with Apply & Save.";
+  b.appendChild(note);
+}
+function renderAdminCards(b){
+  aHead(b,"CARDS — 🖼 Upload replaces a card's art from your computer · click a thumbnail to preview");
+  const fxKeys=["",...Object.keys(CFG.fxLibrary||{}),"burst","shake","glow","frost","none"];
+  const sfxKeys=Object.keys(AUDIO_RECIPES);
+  CFG.cards.forEach(c=>{
+    const r=document.createElement("div");r.className="aRow";r.dataset.card=c.id;
+    r.innerHTML=
+      `<div class="aThumb" title="Preview" style="background-image:url('${esc(c.imageURL)}')"></div>`+
+      `<input type="text" class="aCardName" data-f="name" value="${esc(c.name)}">`+
+      `<label>cost</label><input type="number" data-f="cost" value="${c.cost}">`+
+      `<label>power</label><input type="number" data-f="power" value="${c.power}">`+
+      `<label>img</label><input type="text" data-f="imageURL" value="${esc(c.imageURL)}">`+
+      `<label>vfx</label><select data-f="vfx">${aOpts(fxKeys,c.vfx)}</select>`+
+      `<label>hit</label><select data-f="interactFx">${aOpts(fxKeys,c.interactFx)}</select>`+
+      `<label>sfx</label><select data-f="sfx">${aOpts(sfxKeys,c.sfx)}</select>`+
+      `<label>team</label><select data-teamsel></select>`+
+      `<input type="text" data-f="abilityText" value="${esc(c.abilityText)}" placeholder="ability text">`;
+    /* team assignment applies immediately (persist with Apply & Save) */
+    const tsel=r.querySelector("[data-teamsel]");
+    const curTeam=teamOf(c.id);
+    tsel.innerHTML=`<option value="">—</option>`+
+      Object.entries(CFG.teams||{}).map(([tid,t])=>
+        `<option value="${esc(tid)}"${curTeam&&curTeam.id===tid?" selected":""}>${esc(t.name)}</option>`).join("");
+    tsel.onchange=()=>{audio.click();assignTeam(c.id,tsel.value||null);};
+    const img=r.querySelector('[data-f="imageURL"]');
+    const thumb=r.querySelector(".aThumb");
+    thumb.onclick=()=>{
+      const read=f=>{const el=r.querySelector(`[data-f="${f}"]`);return el?el.value:"";};
+      inspectCard({def:{...c,name:read("name"),cost:Number(read("cost"))||0,
+        power:Number(read("power"))||0,imageURL:read("imageURL"),
+        abilityText:read("abilityText")},permBuff:0,el:null});};
+    img.addEventListener("input",()=>{thumb.style.backgroundImage=`url('${img.value}')`;});
+    img.insertAdjacentElement("afterend",
+      fileBtn(data=>{img.value=data;thumb.style.backgroundImage=`url('${data}')`;
+        toast("Art loaded — Apply & Save to keep");}));
+    b.appendChild(r);});
+}
+
+/* numeric guard: ignore empty/NaN edits instead of zeroing the game rules */
+function numOr(inp,prev){const n=Number(inp.value);
+  return (inp.value!==""&&Number.isFinite(n))?n:prev;}
+/* read the currently-rendered section's inputs into CFG (no persistence) —
+   runs on section switch so edits survive navigation, and on Apply & Save */
+function collectAdmin(){
+  $("adminBody").querySelectorAll("[data-rule]").forEach(inp=>{
+    const k=inp.dataset.rule;
+    CFG.rules[k]=inp.type==="number"?numOr(inp,CFG.rules[k]):inp.value;});
+  $("adminBody").querySelectorAll("[data-loc]").forEach(row=>{
+    const l=CFG.locations.find(x=>x.id===row.dataset.loc);if(!l)return;
+    row.querySelectorAll("[data-f]").forEach(inp=>{
+      const f=inp.dataset.f,v=inp.value;
+      if(f==="effectId"||f==="fxKey"){if(v)l[f]=v;else l[f]=null;}
+      else l[f]=v;});});
+  $("adminBody").querySelectorAll("[data-team]").forEach(row=>{
+    const t=(CFG.teams||{})[row.dataset.team];if(!t)return;
+    row.querySelectorAll("[data-f]").forEach(inp=>{t[inp.dataset.f]=inp.value;});});
+  $("adminBody").querySelectorAll("[data-music]").forEach(inp=>{
+    const k=inp.dataset.music;
+    let v=inp.value.trim();
+    /* bare filename → assume it lives in assets/music/ */
+    if(v&&!v.includes("/")&&!v.startsWith("data:"))v="assets/music/"+v;
+    inp.value=v;
+    CFG.music=CFG.music||{};CFG.music[k]=CFG.music[k]||{};
+    CFG.music[k].src=v;});
+  $("adminBody").querySelectorAll("[data-card]").forEach(row=>{
+    const c=CFG.cards.find(x=>x.id===row.dataset.card);if(!c)return;
+    row.querySelectorAll("[data-f]").forEach(inp=>{
+      const f=inp.dataset.f;
+      if(f==="vfx"||f==="interactFx"||f==="sfx"){if(inp.value)c[f]=inp.value;else delete c[f];}
+      else if(inp.type==="number")c[f]=numOr(inp,c[f]);
+      else c[f]=inp.value;});});
+}
+function applyAdmin(){
+  collectAdmin();
+  Admin.store();
+  /* restart whatever's playing so music edits are heard immediately */
+  audio.setMusic(audio._musicKey||"menu",true);
+  audio.play("buff");toast("Saved!");
+}
+function exportConfig(){
+  const clone=JSON.parse(JSON.stringify(CFG)); /* functions drop out */
+  let txt="/* GAAM Card Battle config — exported from the in-game Admin panel */\n"+
+    "window.GAAM_CONFIG = "+JSON.stringify(clone,null,2)+";\n";
+  txt=txt.replace('"rules": {','"rules": {\n    "energyPerTurn": (turn) => turn,');
+  const blob=new Blob([txt],{type:"text/javascript"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download="config.js";a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+  toast("config.js downloaded — replace the old one");
+}
+$("btnAdminApply").onclick=applyAdmin;
+$("btnAdminExport").onclick=()=>{audio.click();exportConfig();};
+$("btnAdminReset").onclick=()=>{audio.click();Admin.reset();toast("Overrides cleared — reload the page");};
+$("btnAdminClose").onclick=()=>{audio.click();closeAdmin();};
+Admin.applyStored(); /* boot: re-apply saved edits */
+
+/* ============================================================================
+   MENU / OVERLAY WIRING
+   ========================================================================= */
+function hideOverlays(){["menuOverlay","hostOverlay","overOverlay","lbOverlay","inspectOverlay",
+  "deckOverlay","adminOverlay","userOverlay"].forEach(id=>$(id).classList.add("hidden"));}
+function showMenu(){
+  net.close();
+  G.phase="menu";G.locs=[];
+  G.matchSeq=(G.matchSeq||0)+1; /* cancel any in-flight reveal loop */
+  $("btnQuit").style.display="none";
+  stopAmbient();
+  frame.classList.remove("finalTurn");
+  audio.tension(false);
+  boardEl.innerHTML="";handEl.innerHTML="";
+  hideOverlays();
+  audio.setMusic("menu");
+  showOverlay("menuOverlay");
+}
+$("btnVsAI").onclick=()=>{audio.unlock();audio.click();startMatch("ai");};
+$("btnHost").onclick=()=>{audio.unlock();audio.click();
+  $("hostCode").textContent="----";
+  $("hostStatus").textContent="Waiting for an opponent to join…";
+  closeOverlay("menuOverlay",()=>showOverlay("hostOverlay"));
+  net.host();};
+$("btnJoin").onclick=()=>{audio.unlock();audio.click();net.join($("joinCode").value);};
+$("btnCancelHost").onclick=()=>{audio.click();showMenu();};
+$("btnBoard").onclick=()=>{audio.unlock();audio.click();showLeaderboard();};
+$("btnDecks").onclick=()=>{audio.unlock();audio.click();openDecks();};
+$("btnAdmin").onclick=()=>{audio.unlock();audio.click();openAdmin();};
+$("btnLbClose").onclick=()=>{audio.click();
+  closeOverlay("lbOverlay",()=>{if(G.phase==="menu")showOverlay("menuOverlay");});};
+$("btnAgain").onclick=()=>{audio.click();closeOverlay("overOverlay",showMenu);};
+$("btnEnd").onclick=endTurnPressed;
+$("btnMute").onclick=()=>{audio.unlock();$("btnMute").textContent=audio.toggleMute()?"🔇":"🔊";};
+$("joinCode").addEventListener("keydown",(e)=>{if(e.key==="Enter")$("btnJoin").click();});
+window.addEventListener("beforeunload",()=>net.close());
+
+/* deep link: index.html#admin opens straight into the admin panel */
+if(location.hash==="#admin")setTimeout(()=>openAdmin(),80);
+
+/* Exposed for debugging & automated tests — safe to remove */
+window.__GAAM={G,startMatch,endTurnPressed,stageCard,canStage,locationsWon,cardPower,locTotal,
+  audio,fx,net,inspectCard,showLeaderboard,Stats,retractStaged,affect,locPlacementFx,AUDIO_RECIPES,
+  renderAll,Decks,Admin,Users,openDecks,openAdmin,renderDeckBuilder,banner,bannerEpic,showOverlay,closeOverlay,
+  teamOf,eligibleSupers,stageSuper,cancelSuper,resolveSuper,destroyCard,openGrave,
+  updateRematchBtn,hostRematchInit,handleNet};
+</script>
+</body>
+</html>

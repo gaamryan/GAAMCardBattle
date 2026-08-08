@@ -1,0 +1,19 @@
+# ── Asset SOURCES — never ship or push these ──────────────────────────────
+# ~1 GB of raw VFX material (PNG frame sequences + .mov packs). The game only
+# loads the packed sprite sheets / webm in assets/fx/, generated via
+# tools/pack_fx.py and ffmpeg. Keep the originals local.
+effects/
+
+# ── OS / editor junk ──────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.vscode/
+.idea/
+
+# ── Tooling caches (if a build step is ever added) ────────────────────────
+node_modules/
+dist/
+__pycache__/
+*.pyc
