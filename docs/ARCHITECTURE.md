@@ -70,6 +70,7 @@ All reads are try/caught (private-browsing safe). No schema versioning yet — f
 
 ## Testing
 
+- `tools/balance_sim.js` — batch AI-vs-AI balance simulator: per-card win rates (flagged beyond 2 standard errors) + per-team super counts; `node tools/balance_sim.js [matches] [--json out]`.
 - `tools/sim_match.js` — headless full match in jsdom (greedy player vs smart AI); asserts completion, board limits, and result rendering. `npm i jsdom` then `node tools/sim_match.js [count]`.
 - Visual verification during development used Playwright + headless Chromium screenshot scripts at 390×844 and 1440×900; promote these into `tests/` per SHIP_PLAN when CI lands.
 - `window.__GAAM` exposes state and key functions (`stageCard`, `resolveSuper`, `handleNet`, `renderAll`, …) precisely so tests and console debugging can drive the game without UI.

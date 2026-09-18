@@ -134,7 +134,7 @@ window.GAAM_CONFIG = {
 
   /* ── CARD DIRECTORY ────────────────────────────────────────────────────── */
   cards: [
-    { id: "spark",        name: "Spark",        cost: 1, power: 2,
+    { id: "spark",        name: "Spark",        cost: 1, power: 1,
       imageURL: "assets/cards/spark.png",
       abilityType: "vanilla", abilityId: null,
       abilityText: "",
@@ -188,7 +188,7 @@ window.GAAM_CONFIG = {
       abilityText: "On Reveal: -3 Power to a random enemy card here.",
       vfx: "electric", interactFx: "electric", sfx: "electric" },
 
-    { id: "iron_titan",   name: "Iron Titan",   cost: 5, power: 9,
+    { id: "iron_titan",   name: "Iron Titan",   cost: 5, power: 10,
       imageURL: "assets/cards/iron_titan.png",
       abilityType: "vanilla", abilityId: null,
       abilityText: "",
@@ -207,7 +207,7 @@ window.GAAM_CONFIG = {
       vfx: "fireWide", sfx: "fire" },
 
     /* ── EXPANSION SET — 20 cards ── */
-    { id: "wisp",         name: "Wisp",          cost: 1, power: 1,
+    { id: "wisp",         name: "Wisp",          cost: 1, power: 2,
       imageURL: "assets/cards/wisp.png",
       abilityType: "ongoing", abilityId: "aloneBonus",
       abilityText: "Ongoing: +2 Power if this is your only card here.",
@@ -263,13 +263,13 @@ window.GAAM_CONFIG = {
       abilityText: "On Reveal: -3 Power to the strongest enemy card here.",
       vfx: "electric", interactFx: "electric", sfx: "electric" },
 
-    { id: "grave_witch",  name: "Grave Witch",   cost: 4, power: 3,
+    { id: "grave_witch",  name: "Grave Witch",   cost: 4, power: 4,
       imageURL: "assets/cards/grave_witch.png",
       abilityType: "onReveal", abilityId: "globalSmite",
       abilityText: "On Reveal: -1 Power to ALL enemy cards everywhere.",
       vfx: "dark", interactFx: "dark", sfx: "dark" },
 
-    { id: "sun_priest",   name: "Sun Priest",    cost: 4, power: 3,
+    { id: "sun_priest",   name: "Sun Priest",    cost: 4, power: 4,
       imageURL: "assets/cards/sun_priest.png",
       abilityType: "onReveal", abilityId: "buffOtherLocations",
       abilityText: "On Reveal: +1 Power to your cards at other locations.",
@@ -292,7 +292,7 @@ window.GAAM_CONFIG = {
       abilityText: "On Reveal: -2 Power to two random enemy cards here.",
       vfx: "dark", interactFx: "dark", sfx: "dark" },
 
-    { id: "moon_matron",  name: "Moon Matron",   cost: 5, power: 5,
+    { id: "moon_matron",  name: "Moon Matron",   cost: 5, power: 6,
       imageURL: "assets/cards/moon_matron.png",
       abilityType: "ongoing", abilityId: "packBonus",
       abilityText: "Ongoing: +1 Power for each of your other cards here.",
