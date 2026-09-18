@@ -145,6 +145,13 @@ body{display:flex;align-items:center;justify-content:center;
   transition:transform .1s,filter .2s;}
 #btnEnd:active{transform:translateY(2px);box-shadow:0 1px 0 #a86a00;}
 #btnEnd:disabled{filter:grayscale(.7) brightness(.55);cursor:not-allowed;}
+#turnTimer{color:#ffd257;font-weight:800;}
+#turnTimer.urgent{color:#ff5d5d;animation:timerPulse .5s ease-in-out infinite alternate;}
+@keyframes timerPulse{from{opacity:1}to{opacity:.35}}
+@media (prefers-reduced-motion: reduce){
+  #starfield{display:none;}
+  *{animation:none !important;transition:none !important;}
+}
 #deckCount{font-size:clamp(8px,2vmin,11px);color:var(--dim);}
 
 /* ---- FX layers ---- */
@@ -422,7 +429,7 @@ body{display:flex;align-items:center;justify-content:center;
   <!-- ---- HUD ---- -->
   <div id="topbar">
     <span class="pill" id="oppPill"><b id="oppName">AI</b> · Hand: <span id="oppHand">3</span></span>
-    <span class="pill" id="turnPill">Turn <b id="turnNow">1</b>/<span id="turnMax">6</span></span>
+    <span class="pill" id="turnPill">Turn <b id="turnNow">1</b>/<span id="turnMax">6</span> <span id="turnTimer"></span></span>
     <span class="pill" id="btnQuit" title="Concede match">🏳</span>
     <span class="pill" id="btnMute" title="Toggle sound">🔊</span>
   </div>
@@ -610,6 +617,12 @@ const esc=(v)=>String(v??"").replace(/&/g,"&amp;").replace(/"/g,"&quot;")
 const shuffle=(arr,rnd=Math.random)=>{for(let i=arr.length-1;i>0;i--){
   const j=Math.floor(rnd()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;};
 const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
+/* honor the OS "reduce motion" accessibility setting: decorative motion is
+   skipped and reveals run at fast-forward pace automatically */
+const REDUCED_MOTION=(()=>{try{return matchMedia("(prefers-reduced-motion: reduce)").matches;}catch(e){return false;}})();
+/* reveal-pacing sleep: collapses to near-instant when the player taps to
+   fast-forward (G.ffwd) or the OS asks for reduced motion */
+const rsleep=(ms)=>sleep((G.ffwd||REDUCED_MOTION)?Math.min(ms,60):ms);
 const other=(side)=>side==="me"?"op":"me";
 let uidSeq=0;
 
@@ -963,7 +976,8 @@ class FXManager{
       p.style.setProperty("--dx",Math.cos(a)*d+"px");
       p.style.setProperty("--dy",Math.sin(a)*d+"px");
       this.layer.appendChild(p);setTimeout(()=>p.remove(),850);}}
-  shake(){frame.classList.remove("shake");void frame.offsetWidth;frame.classList.add("shake");}
+  shake(){if(REDUCED_MOTION)return;
+    frame.classList.remove("shake");void frame.offsetWidth;frame.classList.add("shake");}
   glow(el){if(!el||!el.isConnected)return;el.classList.remove("glowing");void el.offsetWidth;el.classList.add("glowing");}
   floatText(el,txt,color="#4ade80"){if(!el||!el.isConnected)return;const {x,y}=this._center(el);
     const t=document.createElement("div");t.className="floatTxt";t.textContent=txt;
@@ -1030,6 +1044,7 @@ const fx=new FXManager($("fxLayer"));
 let ambientTimer=null;
 function startAmbient(){
   stopAmbient();
+  if(REDUCED_MOTION)return;
   ambientTimer=setInterval(()=>{
     if(G.phase==="menu"||G.phase==="over"||!G.locs.length)return;
     G.locs.forEach((L,i)=>{
@@ -1096,7 +1111,7 @@ function spawnWeather(col,type){
    ========================================================================= */
 function flyCard(def,fromRect,toEl,{facedown=false,dur=340,arc=34,trail=null}={}){
   return new Promise((res)=>{
-    if(!toEl||!fromRect||!toEl.animate){res();return;}
+    if(!toEl||!fromRect||!toEl.animate||REDUCED_MOTION){res();return;}
     const f=frame.getBoundingClientRect(),to=toEl.getBoundingClientRect();
     const clone=createCardEl({def,permBuff:0,el:null},{facedown});
     /* elemental trail: the card's vfx color streams behind it in flight */
@@ -1522,7 +1537,7 @@ async function destroyCard(card,locIdx,side){
       {transform:"scale(1.22) rotate(7deg)",opacity:.85,offset:.4},
       {transform:"scale(.05) rotate(-18deg)",opacity:0}
     ],{duration:520,easing:"ease-in"});
-    await sleep(520);
+    await rsleep(520);
   }
   const j=L.cards[side].indexOf(card);
   if(j>=0)L.cards[side].splice(j,1);
@@ -1535,6 +1550,7 @@ async function destroyCard(card,locIdx,side){
 
 /* full-screen transparent-video finisher (config.superFinishers) */
 function playFinisher(kind){
+  if(REDUCED_MOTION)return;
   const src=(CFG.superFinishers||{})[kind];
   if(!src)return;
   const v=document.createElement("video");
@@ -1594,7 +1610,7 @@ async function resolveSuper(s,side){
   const members=L.cards[side].filter(c=>{const t=teamOf(c.def.id);return t&&t.id===s.teamId;});
   members.forEach((c,i)=>setTimeout(()=>{
     if(c.el){fx.glow(c.el);fx.burst(c.el,team.color||"#ffd257",12);}},i*140));
-  await sleep(950);
+  await rsleep(950);
   if(tok!==G.matchSeq||!G.locs.length){cineOff();return;}
   if(!isRevive){
     /* halo cards are protected from destruction (rules.reviveProtected) */
@@ -1603,7 +1619,7 @@ async function resolveSuper(s,side){
     const target=foes[Math.floor(G.rng()*foes.length)]; /* shared rng: MP-safe */
     members.forEach((c,i)=>setTimeout(()=>{
       if(c.el&&target.el)fx.interact(team.fx||"fire",c.el,target.el);},i*110));
-    await sleep(650);
+    await rsleep(650);
     if(tok!==G.matchSeq){cineOff();return;}
     audio.play("superBlast");
     playFinisher("superAttack"); /* full-screen detonation overlay */
@@ -1630,11 +1646,11 @@ async function resolveSuper(s,side){
       fx.floatText(gc.el,"REVIVED","#ffe9a8");
     }
     bannerEpic(gc.def.name.toUpperCase()+" HAS BEEN REVIVED!");
-    await sleep(700);
+    await rsleep(700);
   }
   renderAll();
   cineOff();
-  await sleep((R.revealStaggerMs||900)*0.5);
+  await rsleep((R.revealStaggerMs||900)*0.5);
 }
 
 /* ── concede / forfeit: ends the match immediately, records the result ── */
@@ -1770,7 +1786,7 @@ function matchIntro(){
 }
 
 function nextTurn(){
-  G.turn++;G.playOrder=0;G.meReady=false;G.oppReady=false;
+  G.turn++;G.playOrder=0;G.meReady=false;G.oppReady=false;G.ffwd=false;
   const e=R.energyPerTurn(G.turn);
   G.me.energy=e+(G.nextEnergyBonus.me||0);
   G.op.energy=e+(G.nextEnergyBonus.op||0);
@@ -1784,11 +1800,39 @@ function nextTurn(){
     bannerEpic("FINAL TURN!");
   }else banner("TURN "+G.turn);
   renderAll();
+  startTurnTimer();
 }
+
+/* ── turn timer: auto-ends the staging phase after rules.turnTimerSec ── */
+let turnTimerIv=null;
+function stopTurnTimer(){
+  if(turnTimerIv){clearInterval(turnTimerIv);turnTimerIv=null;}
+  const el=$("turnTimer");if(el){el.textContent="";el.classList.remove("urgent");}
+}
+function startTurnTimer(){
+  stopTurnTimer();
+  const secs=R.turnTimerSec??0;
+  if(!secs||secs<5)return; /* 0 (or silly-small) = timer off */
+  const tok=G.matchSeq;let left=secs;
+  const el=$("turnTimer");
+  const paint=()=>{if(el){el.textContent="⏱"+left+"s";el.classList.toggle("urgent",left<=5);}};
+  paint();
+  turnTimerIv=setInterval(()=>{
+    if(tok!==G.matchSeq||G.phase!=="staging"){stopTurnTimer();return;}
+    left--;paint();
+    if(left<=5&&left>0)audio.click();
+    if(left<=0){toast("⏱ Time's up!");endTurnPressed();}
+  },1000);
+}
+/* tap anywhere during a reveal to fast-forward the rest of it */
+frame.addEventListener("pointerdown",()=>{
+  if(G.phase==="revealing"&&!G.ffwd){G.ffwd=true;toast("⏩ Fast-forward",900);}
+},{passive:true});
 
 /* Player pressed End Turn */
 function endTurnPressed(){
   if(G.phase!=="staging")return;
+  stopTurnTimer();
   audio.click();
   G.meReady=true;G.phase="waiting";
   renderAll();
@@ -1887,7 +1931,7 @@ async function revealCard(card,locIdx,side){
     LOCATION_EFFECTS[eff].onCardRevealed({card,locIdx,side,state:G,rng:G.rng,fx});
   if(card.def.vfx&&card.def.vfx!=="none")fx.play(card.def.vfx,card.el);
   renderAll();
-  await sleep(R.revealStaggerMs);
+  await rsleep(R.revealStaggerMs);
 }
 
 async function endMatch(){
@@ -3057,7 +3101,7 @@ $("deckName").addEventListener("input",()=>{deckEdit.name=$("deckName").value;})
 const ADMIN_RULES=["turns","locationCount","maxCardsPerLocation","locationsToWin",
   "deckSize","startingHand","maxHand","aiThinkMs","revealStaggerMs","interactStaggerMs",
   "superTeamSize","superUsesPerTeam","superCooldownTurns","superCost",
-  "teamSynergyMin","teamSynergyBonus"];
+  "teamSynergyMin","teamSynergyBonus","turnTimerSec"];
 const Admin={
   KEY:"gaam_admin",
   applyStored(){try{

@@ -4,6 +4,8 @@ All notable changes to GAAM Card Battle. Convention: add an entry under **Unrele
 
 ## Unreleased
 
+- **Playtest QoL block** (roadmap step 2 complete): ⏱ turn timer (`rules.turnTimerSec`, default 45s, 0 = off, editable in Admin → Rules) counts down in the turn pill with an urgent pulse + ticks in the last 5s and auto-ends the turn; **tap anywhere during a reveal to fast-forward** the rest of it; the OS **`prefers-reduced-motion`** setting is honored (fly-ins/finishers/shake/ambient/weather/starfield off, reveals auto-fast-forward).
+
 - **Fly-in animation fix** — cards no longer distort during draw/throw/reveal flights: the animated clone is laid out at its destination size and scaled uniformly, instead of stretching non-uniformly between the source and target rectangles.
 - **Double-tap to inspect** — the big card inspector now opens on a double-tap (hand or board); a single tap only previews in the info bar, so releases after a drag or a stray tap no longer pop the modal.
 - **Supers are far easier to reach** — `superTeamSize` 3→2, `superCost` 3→2, `superCooldownTurns` 1→0; default decks are now padded team-first (two random teams fill the empty slots) so teammates actually co-locate; the AI values teammate stacking more and checks for supers *before* spending its energy on plays as well as after.

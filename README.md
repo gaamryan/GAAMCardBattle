@@ -156,6 +156,10 @@ Images can be **viewed and swapped in place**: every card and stage row shows a 
 
 The 🏆 button on the menu opens a local leaderboard persisted in `localStorage`: W/L/D record, win streaks, best total power, top matches, and recent history (vs AI and vs humans). A shared online leaderboard would need a small backend — the `Stats` module in `index.html` is the single place to swap in an API call.
 
+## Pace & accessibility
+
+Each staging turn has a **turn timer** (default 45s, shown in the turn pill; it auto-plays End Turn at zero — set `rules.turnTimerSec: 0` in config or Admin → Rules to disable). Impatient during a reveal? **Tap anywhere to fast-forward** the rest of it. And if your OS is set to *reduce motion*, the game honors it: decorative animation is switched off and reveals run at fast-forward pace automatically.
+
 ## Multiplayer
 
 Host Match → get a code like `X7K2` → friend enters it in Join. Uses PeerJS (free public broker) for direct browser-to-browser play. Only card plays are exchanged; hands/decks stay private. A shared RNG seed keeps random ability outcomes identical on both clients. Note: `file://` usually works, but some networks (strict NATs) can block P2P — hosting the folder over HTTPS is most reliable.
