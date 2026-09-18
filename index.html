@@ -1298,7 +1298,7 @@ const Voice={
   /* ── recorded voice pack (docs/VOICE_PACK.md): assets/voice/<key>.mp3.
      Any file that exists overrides the synth voice for that line. ── */
   PACK_DIR:"assets/voice/",
-  PACK_KEYS:["battle_start","round_1","round_2","round_3","round_4","round_5",
+  PACK_KEYS:["battle_start","round_1","round_2","round_3","round_4","round_5","round_6","round_7",
     "final_turn","hurry","times_up","super_attack","super_revive","revived",
     "snap","combo","incredible","victory","perfect","defeat","draw",
     "new_card","rematch","ohhh","lets_go","here_we_go"],
@@ -1315,6 +1315,8 @@ const Voice={
     [/VICTORY|OPPONENT CONCEDED/i,()=>"victory"],
     [/DEFEAT|YOU CONCEDED/i,()=>"defeat"],
     [/DRAW/i,()=>"draw"],
+    [/INCREDIBLE/i,()=>"incredible"],
+    [/COMBO/i,()=>"combo"],
     [/UNLOCKED/i,()=>"new_card"],
     [/REMATCH/i,()=>"rematch"],
     [/\bVS\b/i,()=>"battle_start"],
@@ -2365,6 +2367,7 @@ async function revealCard(card,locIdx,side){
     if(hits>=2)setTimeout(()=>{
       if(card.el)fx.comboPop(card.el,hits);
       audio.play("leadChange");
+      Voice.say(hits>=4?"INCREDIBLE!":"COMBO!");
     },hits*(R.interactStaggerMs||130)+320);
   }
   const eff=G.locs[locIdx].def.effectId;

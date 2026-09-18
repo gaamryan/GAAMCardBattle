@@ -4,6 +4,8 @@ All notable changes to GAAM Card Battle. Convention: add an entry under **Unrele
 
 ## Unreleased
 
+- **Recorded announcer pack installed** — 34 ElevenLabs takes transcribed, identified, and renamed into `assets/voice/` (rounds 1–7, battle start, final round, hurry/time's up, supers, revive ×2, snap, combo + incredible, all results, new card, rematch, interjections). Combo call-outs now voice ("COMBO!" at 2–3 chained hits, "INCREDIBLE!" at 4+); spare takes kept as inactive `_alt` files; two explicit takes deliberately left inactive. All 26 active lines verified loading and routing.
+
 - **⭐ Featured stage of the day** — one stage per day (date-picked, same for everyone) is guaranteed into every match's deal with its **effect doubled**, starred on the plate and announced on the menu. Guests inherit the host's pick via netCfg. `rules.featuredEnabled: 0` disables.
 - **2 wild stages (14 total)** — **Underdog Alley** (comeback ring: the side losing the location gets +2 Power per card — raw-sum based, recursion-safe) and **Chaos Rift** (every card revealed there gets −2..+3 Power from the shared rng, multiplayer-deterministic).
 

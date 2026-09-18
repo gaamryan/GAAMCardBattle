@@ -65,8 +65,14 @@ gradually. No config changes needed.
 
 - **Rounds vs turns:** the game's banners say "TURN N"; the recorded lines
   say "ROUND N" because it sounds better shouted. `round_N.mp3` maps to
-  turn N automatically. If the admin raises `rules.turns` above 6, rounds
-  past 5 fall back to the synth voice (record more `round_N` files to cover).
+  turn N automatically — the shipped pack covers rounds 1–7.
+- **Status (2026-09-18):** a full ElevenLabs pack is installed. Files ending
+  in `_alt` are spare takes the game ignores — swap one in by renaming it
+  over the main file. The two `super_attack_explicit_alt` takes contain
+  profanity and are deliberately NOT active; rename one to
+  `super_attack.mp3` if you want it. `unknown_take_1/2` were unclear
+  one-word takes ("Turn…"/"Round!") left unassigned.
+- `combo.mp3` plays on 2–3 chained ability hits, `incredible.mp3` on 4+.
 - Card and team names stay synthesized (they're dynamic), so the pack and
   the synth voice will both be heard — pick a synth style in Admin → Music
   that's closest to your recorded character.
