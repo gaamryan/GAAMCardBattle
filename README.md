@@ -153,9 +153,16 @@ Host Match → get a code like `X7K2` → friend enters it in Join. Uses PeerJS 
 
 ## Docs
 
-- `docs/BUG_HUNT.md` — full code review: methodology, 12 bugs found & fixed, 11 known issues with repro steps and fix sketches.
+Start here when developing: **`docs/ARCHITECTURE.md`** — the engine internals map (module layout, state shape, multiplayer protocol + determinism rules, storage schema, and the conventions that prevent regressions). Record every change set in **`CHANGELOG.md`**.
+
+- `CHANGELOG.md` — what was built and when; add to Unreleased with each change set.
+- `docs/ARCHITECTURE.md` — how the code works; update when internals move.
+- `docs/BUG_HUNT.md` — full code review: methodology, bugs found & fixed, known issues with repro steps and fix sketches.
+- `docs/NEXT_STEPS.md` — the agreed near-term roadmap (deploy → playtest QoL → balance → retention → backend).
 - `docs/ONLINE_BACKEND.md` — architecture plan for real sign-ins, cross-device deck sync, and a verified global leaderboard (Supabase + engine re-simulation).
 - `docs/SHIP_PLAN.md` — production-readiness checklist (packaging, CI quality gates, PWA, QA matrix) and a prioritized feature roadmap.
+
+Regression test: `npm i jsdom` once, then `node tools/sim_match.js [count]` plays full headless matches and fails on engine violations — run it after any engine change.
 
 ## Debugging
 
