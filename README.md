@@ -173,7 +173,7 @@ Each staging turn has a **turn timer** (default 45s, shown in the turn pill; it 
 
 ## Announcer & How to Play
 
-An arcade **announcer voice** calls the big moments — turn starts, FINAL TURN, supers, revives, snaps, and the result — using your browser's speech synthesis (no downloads). Mute it any time with the 🎙 pill in the top bar. The admin picks the announcer character in Admin → Music (five styles, with a Test button) and can publish it for all players. New players can learn everything from **📖 How to Play** on the main menu — it reads the live rules, so admin changes show up in it automatically.
+The 👤 button on the menu shows what kind of account you're on: **☁ ONLINE** (cloud account), **📱 LOCAL** (named profile on this device), or **🎮 GUEST**. An arcade **announcer voice** calls the big moments — turn starts, FINAL TURN, supers, revives, snaps, and the result — using your browser's speech synthesis (no downloads). The default **Maximum Hype** style grabs the most natural voice your device has and adds shouted interjections on the big beats; and on the final turn a pounding, accelerating **heartbeat** takes over the soundtrack. Mute it any time with the 🎙 pill in the top bar. The admin picks the announcer character in Admin → Music (five styles, with a Test button) and can publish it for all players. New players can learn everything from **📖 How to Play** on the main menu — it reads the live rules, so admin changes show up in it automatically.
 
 ## Multiplayer
 

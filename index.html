@@ -671,10 +671,20 @@ class AudioManager{
   /* final-turn heartbeat loop */
   tension(on){
     if(on&&!this._tensionTimer){
-      const tick=()=>{if(!this.muted)this.play("heartbeat");};
-      tick();this._tensionTimer=setInterval(tick,1300);
+      /* duck the music so the heartbeat owns the room */
+      if(this.htmlTrack&&!this.muted)this.htmlTrack.volume=0.16;
+      const t0=Date.now();
+      const tick=()=>{
+        if(!this._tensionTimer)return;
+        if(!this.muted)this.play("heartbeat");
+        /* the pulse quickens: ~1300ms down to ~700ms over 25s */
+        const period=Math.max(700,1300-(Date.now()-t0)*0.024);
+        this._tensionTimer=setTimeout(tick,period);
+      };
+      this._tensionTimer=setTimeout(tick,10);
     }else if(!on&&this._tensionTimer){
-      clearInterval(this._tensionTimer);this._tensionTimer=null;}
+      clearTimeout(this._tensionTimer);this._tensionTimer=null;
+      if(this.htmlTrack&&!this.muted)this.htmlTrack.volume=0.35;}
   }
   toggleMute(){this.muted=!this.muted;
     if(this.master)this.master.gain.value=this.muted?0:0.5;
@@ -812,9 +822,12 @@ const AUDIO_RECIPES={
   /* LEAD CHANGE: quick two-tone alert */
   leadChange(a){a._note(740,{type:"triangle",dur:.09,vol:.22});
                 a._note(988,{type:"triangle",dur:.14,vol:.22,when:.08});},
-  /* HEARTBEAT: low double-thump for final-turn tension */
-  heartbeat(a){a._note(58,{type:"sine",dur:.16,vol:.5,slide:-12});
-               a._note(52,{type:"sine",dur:.2,vol:.4,when:.22,slide:-10});},
+  /* HEARTBEAT: heavy chest-thump lub-DUB for final-turn tension */
+  heartbeat(a){
+    a._note(46,{type:"sine",dur:.24,vol:.9,slide:-14});
+    a._noise(.06,.3,0,{filter:"lowpass",freq:220});
+    a._note(42,{type:"sine",dur:.3,vol:1.0,when:.26,slide:-12});
+    a._noise(.07,.35,.26,{filter:"lowpass",freq:200});},
   /* TEAM BARKS: short signature stingers when a team card reveals */
   barkFire(a){a._note(220,{type:"sawtooth",dur:.12,vol:.18,slide:190});
               a._noise(.09,.12,0,{filter:"bandpass",freq:1900});},
@@ -1225,6 +1238,17 @@ const Voice={
     b.textContent=this.muted()?"🎙̶":"🎙";
     b.title=this.muted()?"Announcer off — tap to enable":"Announcer on — tap to mute";
     b.style.opacity=this.muted()?".45":"1";},
+  _pickVoice(hint){
+    const vs=speechSynthesis.getVoices().filter(v=>(v.lang||"").toLowerCase().startsWith("en"));
+    let rx=null;try{if(hint)rx=new RegExp(hint,"i");}catch(e){}
+    /* rank: natural/neural voices sound far more human than the defaults */
+    const score=v=>
+      (/google us english|natural|neural|online|premium|enhanced/i.test(v.name)?4:0)+
+      (rx&&rx.test(v.name)?2:0)+
+      ((v.lang||"").toLowerCase()==="en-us"?1:0);
+    return vs.sort((a,b)=>score(b)-score(a))[0]||null;
+  },
+  HYPE:["OHHH!","LET'S GO!","HERE WE GO!","OH YEAH!","ARE YOU READY?!"],
   say(txt,force){
     if(!this.enabled())return;
     if(REDUCED_MOTION&&!force)return;
@@ -1232,16 +1256,21 @@ const Voice={
       const V=CFG.voice||{};
       const st=(V.styles||{})[V.style]||{};
       /* strip emoji/symbols; keep the shout */
-      const clean=String(txt).replace(/[×]/g," times ")
+      let clean=String(txt).replace(/[×]/g," times ")
+        .replace(/\bVS\b/gi," versus ")
         .replace(/[^\w\s!?'.,-]/g," ").replace(/\s+/g," ").trim();
       if(!clean)return;
+      /* excite mode: shouted interjections + hard exclamations on the big beats */
+      if(st.excite){
+        if(!/[!?]$/.test(clean))clean+="!";
+        if(/SUPER|VICTORY|FINAL|SNAPPED|REVIVED|VERSUS/i.test(clean))
+          clean=this.HYPE[Math.floor(Math.random()*this.HYPE.length)]+" "+clean;
+      }
       speechSynthesis.cancel();
       const u=new SpeechSynthesisUtterance(clean);
       u.pitch=st.pitch??0.55;u.rate=st.rate??1.1;u.volume=1;
-      const vs=speechSynthesis.getVoices().filter(v=>(v.lang||"").toLowerCase().startsWith("en"));
-      let pick=null;
-      if(st.voiceHint){try{const rx=new RegExp(st.voiceHint,"i");pick=vs.find(v=>rx.test(v.name));}catch(e){}}
-      u.voice=pick||vs[0]||null;
+      const pv=this._pickVoice(st.voiceHint);
+      if(pv){try{u.voice=pv;}catch(e){}} /* a bad voice must never kill the call-out */
       speechSynthesis.speak(u);
     }catch(e){}
   },
@@ -3167,7 +3196,19 @@ const Users={
   },
 };
 Users.init();
-function refreshUserBtn(){$("userBtnName").textContent=Users.current();}
+function refreshUserBtn(){
+  const name=Users.current();
+  let tag,color;
+  if(Cloud.profile){tag="☁ ONLINE";color="var(--gold)";}
+  else{
+    const o=Users.load();
+    const isGuest=name==="Player"&&(!o||(o.list||[]).length<=1);
+    tag=isGuest?"🎮 GUEST":"📱 LOCAL";
+    color=isGuest?"var(--dim)":"var(--accent)";
+  }
+  $("userBtnName").innerHTML=esc(name)+
+    ` <span style="font-size:10px;font-weight:800;letter-spacing:1px;color:${color}">· ${tag}</span>`;
+}
 function openAccounts(){
   closeOverlay("menuOverlay",()=>{showOverlay("userOverlay");renderAccounts();});
 }

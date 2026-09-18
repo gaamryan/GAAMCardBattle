@@ -429,9 +429,10 @@ window.GAAM_CONFIG = {
      toggle in the top bar. */
   voice: {
     enabled: 1,
-    style: "arcade",  /* which of the styles below to use */
+    style: "maxhype", /* which of the styles below to use */
     styles: {
-      arcade:    { label: "Arcade Hype",    pitch: 0.55, rate: 1.12, voiceHint: "male|david|daniel|fred" },
+      maxhype:   { label: "Maximum Hype",   pitch: 1.0,  rate: 1.22, voiceHint: "google|natural|neural|online|guy|alex|aaron", excite: 1 },
+      arcade:    { label: "Arcade Hype",    pitch: 0.55, rate: 1.12, voiceHint: "male|david|daniel|fred", excite: 1 },
       deep:      { label: "Deep Doom",      pitch: 0.30, rate: 0.92, voiceHint: "male|david|daniel|fred" },
       hype:      { label: "Fast Hype",      pitch: 0.85, rate: 1.35, voiceHint: "" },
       robot:     { label: "Robo Referee",   pitch: 0.12, rate: 1.02, voiceHint: "zarvox|robot|whisper" },
