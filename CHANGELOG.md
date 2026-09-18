@@ -5,6 +5,7 @@ All notable changes to GAAM Card Battle. Convention: add an entry under **Unrele
 ## Unreleased
 
 - Project documentation set: `docs/ARCHITECTURE.md` (engine internals reference), this changelog, portable `tools/sim_match.js` test harness.
+- `CLAUDE.md`: standing project instructions — documentation upkeep is required with every change set (changelog entry, architecture/bug-hunt/roadmap/README updates), plus the core dev rules and verification steps.
 
 ## 0.1.0 — Initial prototype (built July 2026, pushed September 2026)
 
