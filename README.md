@@ -156,6 +156,12 @@ Images can be **viewed and swapped in place**: every card and stage row shows a 
 
 The 🏆 button on the menu opens a local leaderboard persisted in `localStorage`: W/L/D record, win streaks, best total power, top matches, and recent history (vs AI and vs humans). A shared online leaderboard would need a small backend — the `Stats` module in `index.html` is the single place to swap in an API call.
 
+## Cubes & card unlocks
+
+Every match is played for **🎲 cubes** — the stake starts at 1, and the purple **SNAP** button (next to End Turn) doubles it, once per player per match. Both players snapping makes the match worth ×4. The AI snaps back when it's ahead, and snaps sync in multiplayer. Win the match and the stake is added to your cube total (shown on the leaderboard); lose or concede — that's a *retreat* — and you pay it. Turn it off with `rules.cubesEnabled: 0`.
+
+New accounts start with the **16 cheapest cards unlocked**; every win unlocks one random new card (greyed cards with 🔒 in the deck builder are still locked). Tune with `rules.unlocksEnabled` / `rules.unlockStartCount` in config or Admin → Rules.
+
 ## Pace & accessibility
 
 Each staging turn has a **turn timer** (default 45s, shown in the turn pill; it auto-plays End Turn at zero — set `rules.turnTimerSec: 0` in config or Admin → Rules to disable). Impatient during a reveal? **Tap anywhere to fast-forward** the rest of it. And if your OS is set to *reduce motion*, the game honors it: decorative animation is switched off and reveals run at fast-forward pace automatically.

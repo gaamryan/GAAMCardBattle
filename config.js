@@ -46,6 +46,9 @@ window.GAAM_CONFIG = {
     aiStyle: "smart",       // "smart" (heuristic) or "random"
     aiThinkMs: 900,         // fake AI "thinking" delay
     turnTimerSec: 45,       // seconds to stage each turn before auto End Turn (0 = no timer)
+    cubesEnabled: 1,        // 🎲 Snap/Retreat stakes: match is worth cubes, SNAP doubles them
+    unlocksEnabled: 1,      // card progression: 1 = win matches to unlock cards, 0 = all cards available
+    unlockStartCount: 16,   // cards unlocked for a brand-new account (cheapest first)
     revealStaggerMs: 900,   // pause between each card reveal
     interactStaggerMs: 130, // pause between multi-target ability hits
     superTeamSize: 2,       // team members needed at one location to unlock a Super

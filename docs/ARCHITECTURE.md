@@ -33,7 +33,7 @@ The developer-facing map of the codebase. The README covers *what the game does*
 12. **Input** — Pointer Events drag (mouse+touch): threshold → ghost clone → drop on `.location`. **Double-tap** (two taps on the same card uid within 400ms, via the shared `dblTap(id)` helper) = inspector, for hand and board cards alike; a single tap only previews in the info bar. `pointercancel` cleans up. 3D tilt on hand hover (non-touch).
 13. **AI** — `aiSmart` greedy loop: per (card, location) value = power + location effect + `AI_ABILITY_VALUE[abilityId]` + teammate-stacking bonus (n×2.5 + synergy) + flip-a-loss bonuses. **Every new ability needs an `AI_ABILITY_VALUE` entry.** Super pass (`aiTrySupers`) runs BEFORE the play loop (so spending the hand can't starve a super of energy) and again after (staged teammates can newly unlock one). `buildDeck` pads default decks team-first: two random teams' members fill empty slots before anything else.
 14. **NetManager (PeerJS)** — host id = `GAAM-<code>` on the public broker. `netCfg()` bundles rules+cards+locations+teams+music (incl. data-URL art) for the guest; `backupCfg/restoreCfg` snapshot the guest's own config around a match. Connection **stays open on the results screen** for rematch; closes on menu.
-15. **Meta systems** — inspector, `Stats` (per-user), leaderboard (ranks local accounts), `Users` (local profiles; storage-key namespace), `Decks` (5/account, 2 copies/card, padding respects the cap), `Admin` (sectioned editor, overrides in localStorage applied at boot, `#admin` hash route, config.js exporter), menu wiring, `window.__GAAM` test/debug handle.
+15. **Meta systems** — inspector, `Unlocks` (per-user card progression: `load()` returns null when disabled = all unlocked; `grantRandom()` on wins; deck builder + `buildDeck` respect it), Snap/Retreat cubes (`G.cubes`/`G.snapped`, `doSnap(side)`, `updateSnapUI`, AI snaps when ahead from turn 4, MP `{t:"snap"}` message; payout recorded via `Stats.record` `detail.cubes`), `Stats` (per-user), leaderboard (ranks local accounts), `Users` (local profiles; storage-key namespace), `Decks` (5/account, 2 copies/card, padding respects the cap), `Admin` (sectioned editor, overrides in localStorage applied at boot, `#admin` hash route, config.js exporter), menu wiring, `window.__GAAM` test/debug handle.
 
 ## Multiplayer protocol & determinism
 
@@ -45,6 +45,7 @@ Messages over one PeerJS reliable channel:
 | `init` | `{seed, cfg: netCfg(), name}` | host → guest at start **and on rematch** |
 | `plays` | `{turn, plays:[{cardId,locIdx,order} \| {super:true,teamId,locIdx,graveIdx,order}]}` | both, each turn |
 | `rematch` | — | offer/accept handshake |
+| `snap` | — | sender doubled the cube stake |
 | `bye` | — | concede |
 
 Hands and decks never leave the owning client; only plays travel. Both clients replay the same reveal deterministically because: (1) the shared `mulberry32(seed)` is consumed **only** for shared decisions — location pick at start, super-attack targets — never for private draws/shuffles (those use `Math.random`); (2) reveal order is canonical — priority side first (more locations won; host on ties), then per-side plays by `order` with supers last (stable sort); (3) all power math is pure. **Rule: inside anything that runs during reveal, use `ctx.rng()`/`G.rng()`, never `Math.random`.** `pendingPlays` is keyed by turn so an early-finishing opponent's next-turn message is never lost.
@@ -64,6 +65,7 @@ Project `gaam-card-battle` (`rzaajtnvdatuvlcsefqa.supabase.co`), configured in `
 | `gaam_users` | `{list:[names], current}` |
 | `gaam_decks::<user>` | `{decks:[{name, cards:[ids]}], active}` |
 | `gaam_stats::<user>` | W/L/D, streaks, bestPower, history[25] |
+| `gaam_unlocks::<user>` | `{ids:[cardIds]}` — unlocked cards (created lazily from the cheapest `unlockStartCount`) |
 | `gaam_admin` | Admin overrides (rules, cards incl. data-URL images, locations, music srcs, teams) — deep-merged into `CFG` at boot by `Admin.applyStored()` |
 
 All reads are try/caught (private-browsing safe). No schema versioning yet — flagged in SHIP_PLAN before changing any shape.

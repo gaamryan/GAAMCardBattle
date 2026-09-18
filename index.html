@@ -145,6 +145,16 @@ body{display:flex;align-items:center;justify-content:center;
   transition:transform .1s,filter .2s;}
 #btnEnd:active{transform:translateY(2px);box-shadow:0 1px 0 #a86a00;}
 #btnEnd:disabled{filter:grayscale(.7) brightness(.55);cursor:not-allowed;}
+#btnSnap{width:100%;margin-bottom:6px;padding:7px 4px;border-radius:12px;border:none;cursor:pointer;
+  font-weight:900;font-size:12px;color:#fff;display:none;
+  background:linear-gradient(180deg,#a05df0,#5b1fa0);box-shadow:0 3px 0 #3d1070;}
+#btnSnap:active{transform:translateY(2px);box-shadow:0 1px 0 #3d1070;}
+#btnSnap:disabled{filter:grayscale(.6) brightness(.6);cursor:not-allowed;animation:none;}
+#btnSnap:not(:disabled){animation:readyGlow 1.7s ease-in-out infinite;}
+.dcard.locked{filter:grayscale(.9) brightness(.5);}
+.dcard.locked .cnt{display:none;}
+.lockBadge{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:26px;z-index:3;text-shadow:0 0 12px #000;}
 #turnTimer{color:#ffd257;font-weight:800;}
 #turnTimer.urgent{color:#ff5d5d;animation:timerPulse .5s ease-in-out infinite alternate;}
 @keyframes timerPulse{from{opacity:1}to{opacity:.35}}
@@ -447,6 +457,7 @@ body{display:flex;align-items:center;justify-content:center;
           <div id="energyNum">1</div>
           <div id="energyLbl">ENERGY</div>
         </div>
+        <button id="btnSnap" title="Double the cube stakes (once per match)">🎲 ×1 SNAP</button>
         <button id="btnEnd">End Turn</button>
         <div id="deckCount">Deck: 9</div>
         <div id="graveCount" title="Your graveyard">💀 0</div>
@@ -1357,15 +1368,17 @@ function buildDeck(owner){
   /* your saved active deck drives your draws; AI/opponent uses the default */
   const ids=(owner==="me")?Decks.activeCards():null;
   if(ids)ids.forEach(id=>{const def=CFG.cards.find(c=>c.id===id);
-    if(def&&deck.length<R.deckSize)deck.push(makeCard(def,owner));});
+    if(def&&deck.length<R.deckSize&&(owner!=="me"||Unlocks.has(id)))
+      deck.push(makeCard(def,owner));});
   /* pad short decks with a TEAM-FOCUSED default (2-copies-per-card cap):
      two random teams' members fill first so teammates actually end up in
      the same deck — that's what makes Supers reachable in normal play. */
   const teamIds=Object.keys(CFG.teams||{});
   const picks=shuffle([...teamIds]).slice(0,2);
   const inPick=c=>{const t=teamOf(c.id);return t&&picks.includes(t.id);};
-  const pool=shuffle(CFG.cards.filter(inPick))
-    .concat(shuffle(CFG.cards.filter(c=>!inPick(c))));
+  const avail=(owner==="me")?CFG.cards.filter(c=>Unlocks.has(c.id)):CFG.cards;
+  const pool=shuffle(avail.filter(inPick))
+    .concat(shuffle(avail.filter(c=>!inPick(c))));
   let i=0,guard=0;
   while(deck.length<R.deckSize&&guard++<400&&pool.length){
     const def=pool[i%pool.length];i++;
@@ -1670,7 +1683,15 @@ function endMatchConceded(winnerSide,reason){
   $("resultDetail").innerHTML=esc(reason)+
     `<br>Locations — You: ${w.me} · Opponent: ${w.op}`+
     `<br>Total power — You: ${myTotal} · Opponent: ${opTotal}`;
-  Stats.record(outcome,{mode:G.mode,me:myTotal,op:opTotal,locs:w.me+"-"+w.op,outcome});
+  const cubeDelta=cubesOn()?(outcome==="win"?(G.cubes||1):-(G.cubes||1)):0;
+  if(cubeDelta)$("resultDetail").innerHTML+=
+    `<br>🎲 Cubes: <b style="color:${cubeDelta>0?"var(--gold)":"var(--bad)"}">${cubeDelta>0?"+":""}${cubeDelta}</b>`;
+  Stats.record(outcome,{mode:G.mode,me:myTotal,op:opTotal,locs:w.me+"-"+w.op,outcome,cubes:cubeDelta});
+  if(outcome==="win"){
+    const nc=Unlocks.grantRandom();
+    if(nc)$("resultDetail").innerHTML+=
+      `<br>🔓 Unlocked: <b style="color:var(--gold)">${esc(nc.name)}</b>`;
+  }
   bannerEpic(reason);
   audio.gameEnd(outcome==="win");
   if(outcome==="win")fx.confetti();
@@ -1756,6 +1777,7 @@ function startMatch(mode,{seed,locIds}={}){
     const mkey=G.chosenLocIds.find(id=>M[id])||"battle";
     audio.setMusic(mkey);
   }
+  G.cubes=1;G.snapped={me:false,op:false};
   $("oppName").textContent = mode==="ai"?"AI":(G.remoteName||"Opponent");
   $("turnMax").textContent = R.turns;
   buildBoardDOM();
@@ -1800,6 +1822,7 @@ function nextTurn(){
     bannerEpic("FINAL TURN!");
   }else banner("TURN "+G.turn);
   renderAll();
+  updateSnapUI();
   startTurnTimer();
 }
 
@@ -1824,6 +1847,29 @@ function startTurnTimer(){
     if(left<=0){toast("⏱ Time's up!");endTurnPressed();}
   },1000);
 }
+/* ── SNAP: double the cube stake, once per player per match ── */
+function cubesOn(){return (R.cubesEnabled??1)&&G.mode!=="menu";}
+function doSnap(side){
+  if(!cubesOn()||G.snapped[side])return;
+  G.snapped[side]=true;G.cubes=(G.cubes||1)*2;
+  const who=side==="me"?Users.current().toUpperCase()
+    :(G.mode==="ai"?"THE AI":(G.remoteName||"OPPONENT").toUpperCase());
+  bannerEpic(who+" SNAPPED! 🎲 STAKES ×"+G.cubes);
+  audio.play("superCharge");fx.shake();
+  updateSnapUI();
+}
+function updateSnapUI(){
+  const b=$("btnSnap");if(!b)return;
+  if(!cubesOn()||G.phase==="menu"){b.style.display="none";return;}
+  b.style.display="block";
+  b.textContent="🎲 ×"+(G.cubes||1)+(G.snapped.me?"":" SNAP");
+  b.disabled=G.snapped.me||G.phase!=="staging";
+}
+$("btnSnap").onclick=()=>{
+  if(G.phase!=="staging"||G.snapped.me)return;
+  audio.click();doSnap("me");
+  if(G.mode!=="ai")net.send({t:"snap"});
+};
 /* tap anywhere during a reveal to fast-forward the rest of it */
 frame.addEventListener("pointerdown",()=>{
   if(G.phase==="revealing"&&!G.ffwd){G.ffwd=true;toast("⏩ Fast-forward",900);}
@@ -1960,8 +2006,19 @@ async function endMatch(){
     const p=cardPower(c,i,"me");if(p>mvpP){mvpP=p;mvp=c;}}));
   if(mvp)$("resultDetail").innerHTML+=
     `<br>MVP: <b style="color:var(--gold)">${esc(mvp.def.name)}</b> (${mvpP} power)`;
-  Stats.record(outcome,{mode:G.mode,me:myTotal,op:opTotal,locs:w.me+"-"+w.op,outcome});
+  const cubeDelta=cubesOn()?(outcome==="win"?(G.cubes||1):outcome==="lose"?-(G.cubes||1):0):0;
+  if(cubeDelta)$("resultDetail").innerHTML+=
+    `<br>🎲 Cubes: <b style="color:${cubeDelta>0?"var(--gold)":"var(--bad)"}">${cubeDelta>0?"+":""}${cubeDelta}</b>`;
+  Stats.record(outcome,{mode:G.mode,me:myTotal,op:opTotal,locs:w.me+"-"+w.op,outcome,cubes:cubeDelta});
+  if(outcome==="win"){
+    const nc=Unlocks.grantRandom();
+    if(nc){setTimeout(()=>{bannerEpic("NEW CARD UNLOCKED — "+nc.name.toUpperCase()+"!");
+      audio.play("revive");},2400);
+      $("resultDetail").innerHTML+=
+        `<br>🔓 Unlocked: <b style="color:var(--gold)">${esc(nc.name)}</b>`;}
+  }
   renderAll();
+  updateSnapUI();
   /* verdict stamps slam onto each location, one at a time */
   await sleep(350);
   for(let i=0;i<G.locs.length;i++){
@@ -2085,6 +2142,7 @@ function renderAll(){
   bumpNum($("energyNum"),G.me.energy);
   $("deckCount").textContent="Deck: "+G.me.deck.length;
   $("graveCount").textContent="💀 "+G.me.grave.length;
+  updateSnapUI();
   const btn=$("btnEnd");
   btn.disabled=G.phase!=="staging";
   btn.textContent=G.phase==="waiting"?"Waiting…":G.phase==="revealing"?"Revealing…":"End Turn";
@@ -2340,6 +2398,12 @@ function aiOpenLocs(){
 }
 function aiTakeTurn(){
   G.op.staged=[];
+  if(cubesOn()&&!G.snapped.op&&G.turn>=4){
+    const w=locationsWon();
+    const meT=G.locs.reduce((s,L,i)=>s+locTotal(i,"me"),0);
+    const opT=G.locs.reduce((s,L,i)=>s+locTotal(i,"op"),0);
+    if(w.op>w.me||(w.op===w.me&&opT>meT+6))doSnap("op");
+  }
   if((R.aiStyle||"smart")==="random")aiRandom();else aiSmart();
 }
 function aiRandom(){
@@ -2551,6 +2615,7 @@ const net=new NetManager();
 function handleNet(d){
   switch(d.t){
     case "bye": endMatchConceded("me","OPPONENT CONCEDED!");break;
+    case "snap": doSnap("op");break;
     case "rematch":
       G.rematch=G.rematch||{me:false,op:false};
       G.rematch.op=true;
@@ -2631,6 +2696,29 @@ $("inspectOverlay").addEventListener("click",closeInspector);
    LEADERBOARD — local, persisted in localStorage. Tracks W/L/D, streaks,
    best power, and match history. (A global online board needs a backend.)
    ========================================================================= */
+/* ============================================================================
+   UNLOCKS — card progression: start with the cheapest rules.unlockStartCount
+   cards; every WIN unlocks one random locked card. rules.unlocksEnabled: 0
+   turns the whole system off (everything available). Local per-account.
+   ========================================================================= */
+const Unlocks={
+  _key(){return "gaam_unlocks::"+Users.current();},
+  enabled(){return !!(R.unlocksEnabled??0);},
+  load(){ /* null = everything unlocked */
+    if(!this.enabled())return null;
+    try{const o=JSON.parse(localStorage.getItem(this._key()));
+      if(o&&Array.isArray(o.ids))return o;}catch(e){}
+    const start=[...CFG.cards].sort((a,b)=>a.cost-b.cost||(a.id<b.id?-1:1))
+      .slice(0,R.unlockStartCount??16).map(c=>c.id);
+    const o={ids:start};this.save(o);return o;},
+  save(o){try{localStorage.setItem(this._key(),JSON.stringify(o));}catch(e){}},
+  has(id){const o=this.load();return !o||o.ids.includes(id);},
+  locked(){const o=this.load();return o?CFG.cards.filter(c=>!o.ids.includes(c.id)):[];},
+  grantRandom(){ /* returns the newly unlocked card def, or null */
+    const l=this.locked();if(!l.length)return null;
+    const c=l[Math.floor(Math.random()*l.length)];
+    const o=this.load();o.ids.push(c.id);this.save(o);return c;},
+};
 const Stats={
   _key(){return "gaam_stats::"+Users.current();},
   loadFor(user){try{return JSON.parse(localStorage.getItem("gaam_stats::"+user))||{};}catch(e){return{};}},
@@ -2643,6 +2731,7 @@ const Stats={
     o.streak=outcome==="win"?(o.streak||0)+1:0;
     o.bestStreak=Math.max(o.bestStreak||0,o.streak);
     o.bestPower=Math.max(o.bestPower||0,detail.me||0);
+    o.cubes=(o.cubes||0)+(detail.cubes||0);
     o.history=[{d:Date.now(),...detail},...(o.history||[])].slice(0,25);
     this.save(o);
     Cloud.pushStats(); /* best-effort mirror for the global leaderboard */
@@ -2653,7 +2742,7 @@ function showLeaderboard(){
   $("lbSummary").innerHTML=`<b style="color:var(--gold)">${Users.current()}</b><br>`+
     `Wins <b style="color:var(--good)">${o.win||0}</b> · `+
     `Losses <b style="color:var(--bad)">${o.lose||0}</b> · Draws ${o.draw||0}<br>`+
-    `Streak ${o.streak||0} (best ${o.bestStreak||0}) · Best total power ${o.bestPower||0}`;
+    `Streak ${o.streak||0} (best ${o.bestStreak||0}) · Best total power ${o.bestPower||0} · 🎲 Cubes <b style="color:var(--gold)">${o.cubes||0}</b>`;
   const rows=$("lbRows");rows.innerHTML="";
   /* global (cloud) rankings first, when available */
   if(Cloud.sb){
@@ -3043,10 +3132,13 @@ function renderDeckBuilder(animate=false){
     const t=teamOf(def.id);return t&&t.id===deckFilter;});
   shown.forEach((def,gi)=>{
     const n=deckEdit.cards.filter(x=>x===def.id).length;
-    const dc=document.createElement("div");dc.className="dcard"+(n?" maxed":"");
+    const locked=!Unlocks.has(def.id);
+    const dc=document.createElement("div");dc.className="dcard"+(n?" maxed":"")+(locked?" locked":"");
     dc.appendChild(createCardEl({def,permBuff:0,el:null}));
+    if(locked){const lk=document.createElement("div");lk.className="lockBadge";lk.textContent="🔒";dc.appendChild(lk);}
     if(n){const b=document.createElement("div");b.className="cnt";b.textContent="×"+n;dc.appendChild(b);}
     dc.onclick=()=>{
+      if(locked){toast("🔒 Locked — win matches to unlock new cards!");return;}
       if(deckEdit.cards.length>=R.deckSize){toast("Deck is full!");return;}
       if(n>=2){toast("Max 2 copies of a card");return;}
       audio.play("chime");deckEdit.cards.push(def.id);renderDeckBuilder();
@@ -3101,7 +3193,7 @@ $("deckName").addEventListener("input",()=>{deckEdit.name=$("deckName").value;})
 const ADMIN_RULES=["turns","locationCount","maxCardsPerLocation","locationsToWin",
   "deckSize","startingHand","maxHand","aiThinkMs","revealStaggerMs","interactStaggerMs",
   "superTeamSize","superUsesPerTeam","superCooldownTurns","superCost",
-  "teamSynergyMin","teamSynergyBonus","turnTimerSec"];
+  "teamSynergyMin","teamSynergyBonus","turnTimerSec","cubesEnabled","unlocksEnabled","unlockStartCount"];
 const Admin={
   KEY:"gaam_admin",
   applyStored(){try{

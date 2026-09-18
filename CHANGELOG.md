@@ -4,6 +4,10 @@ All notable changes to GAAM Card Battle. Convention: add an entry under **Unrele
 
 ## Unreleased
 
+- **Retention loop** (roadmap step 4 complete):
+  - **Card unlocks** — new accounts start with the 16 cheapest cards (`rules.unlockStartCount`); every WIN unlocks one random locked card with a "NEW CARD UNLOCKED" celebration; locked cards show greyed with 🔒 in the deck builder and are excluded from your deck padding. `rules.unlocksEnabled: 0` switches the system off.
+  - **Snap/Retreat cubes** — every match is played for 🎲 cubes (stake starts at 1). The purple **SNAP** button doubles the stake once per player per match (both snap = ×4; the AI snaps back when it's ahead from turn 4, and SNAP syncs over multiplayer). Win the match, win the stake; lose or concede (= retreat), lose it. Cube totals are tracked in stats and shown on the leaderboard. `rules.cubesEnabled: 0` turns it off.
+
 - **Balance from data** (roadmap step 3 complete) — new `tools/balance_sim.js` batch simulator plays N AI-vs-AI matches headlessly (both sides on the smart heuristic incl. Supers) and reports per-card win rates with statistical flags plus per-team super usage. From 180 measured matches: **Spark 1/2 → 1/1** (68.8% win rate, the "cheap-team early supers" suspicion confirmed — Emberkin fires ~15× more supers than the revive teams); revive-team cards buffed to compensate for their structurally rarer supers — **Wisp 1/1→1/2, Grave Witch 4/3→4/4, Sun Priest 4/3→4/4, Moon Matron 5/5→5/6**; **Iron Titan 5/9→5/10** (~35% across both runs). Post-patch spread: 43–57% with no strong outliers. Leviathan measured fine (53.5%) — no change.
 
 - **Playtest QoL block** (roadmap step 2 complete): ⏱ turn timer (`rules.turnTimerSec`, default 45s, 0 = off, editable in Admin → Rules) counts down in the turn pill with an urgent pulse + ticks in the last 5s and auto-ends the turn; **tap anywhere during a reveal to fast-forward** the rest of it; the OS **`prefers-reduced-motion`** setting is honored (fly-ins/finishers/shake/ambient/weather/starfield off, reveals auto-fast-forward).
