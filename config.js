@@ -348,6 +348,16 @@ window.GAAM_CONFIG = {
      Battle music = the entry matching the FIRST location picked for the
      match, falling back to "battle", falling back to synth.               */
   music: {
+    /* mode: "stage" = each stage's own track (battle as fallback);
+       "random" = every match picks a random track from `pool`.
+       Toggle either way in Admin → Music. */
+    mode: "random",
+    pool: [
+      "assets/music/Backseat-Victory-epic.mp3",
+      "assets/music/Briefing-at-Sunset.mp3",
+      "assets/music/Dogfight-Arcade-Run.mp3",
+      "assets/music/Backseat Victory.mp3",
+    ],
     menu:          { src: "assets/music/Dust-On-The-Circuit.mp3",
                      chords: [[220,261.6,329.6],[174.6,220,261.6],[130.8,164.8,196,261.6],[196,246.9,293.7]],
                      beat: 1.9 },

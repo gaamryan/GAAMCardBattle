@@ -1716,9 +1716,18 @@ function startMatch(mode,{seed,locIds}={}){
   for(let i=0;i<R.startingHand;i++){drawOne("me");if(mode==="ai")drawOne("op");}
 
   fx.preload();
-  /* battle soundtrack: first picked location with a music entry, else default */
-  const mkey=G.chosenLocIds.find(id=>(CFG.music||{})[id])||"battle";
-  audio.setMusic(mkey);
+  /* battle soundtrack:
+     mode "random" → a random track from music.pool for this match;
+     mode "stage"  → first picked location's own track, else default battle */
+  const M=CFG.music||{};
+  if(M.mode==="random"&&Array.isArray(M.pool)&&M.pool.length){
+    const src=M.pool[Math.floor(Math.random()*M.pool.length)];
+    M.__random={src,chords:(M.battle||{}).chords,beat:(M.battle||{}).beat};
+    audio.setMusic("__random",true);
+  }else{
+    const mkey=G.chosenLocIds.find(id=>M[id])||"battle";
+    audio.setMusic(mkey);
+  }
   $("oppName").textContent = mode==="ai"?"AI":(G.remoteName||"Opponent");
   $("turnMax").textContent = R.turns;
   buildBoardDOM();
@@ -3030,7 +3039,10 @@ const Admin={
     (ov.cards||[]).forEach(o=>{const c=CFG.cards.find(x=>x.id===o.id);if(c)Object.assign(c,o);});
     (ov.locations||[]).forEach(o=>{const l=CFG.locations.find(x=>x.id===o.id);if(l)Object.assign(l,o);});
     Object.entries(ov.music||{}).forEach(([k,m])=>{
-      CFG.music=CFG.music||{};CFG.music[k]=CFG.music[k]||{};
+      CFG.music=CFG.music||{};
+      if(k==="mode"){CFG.music.mode=m;return;}
+      if(k==="pool"){if(Array.isArray(m))CFG.music.pool=m;return;}
+      CFG.music[k]=CFG.music[k]||{};
       if(m&&m.src!==undefined)CFG.music[k].src=m.src;});
     Object.entries(ov.teams||{}).forEach(([k,t])=>{
       CFG.teams=CFG.teams||{};CFG.teams[k]=Object.assign(CFG.teams[k]||{},t);});
@@ -3040,7 +3052,11 @@ const Admin={
         vfx:c.vfx,interactFx:c.interactFx,sfx:c.sfx,abilityText:c.abilityText})),
       locations:CFG.locations.map(l=>({id:l.id,name:l.name,imageURL:l.imageURL,
         effectId:l.effectId,fxKey:l.fxKey,effectText:l.effectText})),
-      music:Object.fromEntries(Object.entries(CFG.music||{}).map(([k,v])=>[k,{src:v.src||""}])),
+      music:Object.assign(
+        Object.fromEntries(Object.entries(CFG.music||{})
+          .filter(([k,v])=>v&&typeof v==="object"&&!Array.isArray(v)&&k!=="__random")
+          .map(([k,v])=>[k,{src:v.src||""}])),
+        {mode:(CFG.music||{}).mode||"stage",pool:[...((CFG.music||{}).pool||[])]}),
       teams:Object.fromEntries(Object.entries(CFG.teams||{}).map(([k,t])=>
         [k,{name:t.name,super:t.super,fx:t.fx,color:t.color,members:[...(t.members||[])]}]))};
     ADMIN_RULES.forEach(k=>ov.rules[k]=CFG.rules[k]);ov.rules.aiStyle=CFG.rules.aiStyle;
@@ -3150,6 +3166,30 @@ function renderAdminStages(b){
 }
 
 function renderAdminMusic(b){
+  aHead(b,"BATTLE MUSIC MODE");
+  const M=CFG.music=CFG.music||{};
+  const mrow=document.createElement("div");mrow.className="aRow";
+  mrow.innerHTML=`<label>battle music</label><select data-musicmode>
+    <option value="stage"${M.mode!=="random"?" selected":""}>Per-stage (each stage's own track)</option>
+    <option value="random"${M.mode==="random"?" selected":""}>Random from pool (per match)</option></select>`;
+  b.appendChild(mrow);
+  aHead(b,"RANDOM POOL — one of these plays each match in Random mode");
+  (M.pool||[]).forEach((src,i)=>{
+    const r=document.createElement("div");r.className="aRow";
+    r.innerHTML=`<input type="text" data-pool="${i}" value="${esc(src)}" style="flex:2;min-width:150px">`;
+    const del=document.createElement("button");del.className="aFileBtn";
+    del.style.background="linear-gradient(180deg,#f05555,#a02020)";del.textContent="✕";
+    del.title="Remove from pool";
+    del.onclick=()=>{audio.click();collectAdmin();M.pool.splice(i,1);renderAdmin();};
+    r.appendChild(del);
+    b.appendChild(r);});
+  const addRow=document.createElement("div");addRow.className="aRow";
+  const add=document.createElement("button");add.className="aFileBtn";
+  add.textContent="＋ Add track";
+  add.onclick=()=>{audio.click();collectAdmin();
+    (M.pool=M.pool||[]).push("assets/music/");renderAdmin();};
+  addRow.appendChild(add);
+  b.appendChild(addRow);
   aHead(b,"SCREEN MUSIC");
   [["menu","Home screen music"],["battle","Default battle music"]].forEach(([k,lbl])=>{
     const src=(CFG.music&&CFG.music[k]&&CFG.music[k].src)||"";
@@ -3157,7 +3197,7 @@ function renderAdminMusic(b){
     r.innerHTML=`<label>${lbl}</label><input type="text" data-music="${k}" value="${esc(src)}" placeholder="assets/music/${k}.mp3">`;
     b.appendChild(r);});
   const note=document.createElement("div");note.className="subtext";note.style.textAlign="left";
-  note.textContent="Per-stage tracks are edited on the Stages tab. Missing files fall back to each entry's built-in synth theme, so blank is always safe.";
+  note.textContent="Per-stage tracks are edited on the Stages tab (used in Per-stage mode). Missing files always fall back gracefully (default battle track, then synth), so nothing here can break the game.";
   b.appendChild(note);
 }
 
@@ -3259,6 +3299,17 @@ function collectAdmin(){
   $("adminBody").querySelectorAll("[data-team]").forEach(row=>{
     const t=(CFG.teams||{})[row.dataset.team];if(!t)return;
     row.querySelectorAll("[data-f]").forEach(inp=>{t[inp.dataset.f]=inp.value;});});
+  const mm=$("adminBody").querySelector("[data-musicmode]");
+  if(mm){CFG.music=CFG.music||{};CFG.music.mode=mm.value;}
+  const poolInputs=$("adminBody").querySelectorAll("[data-pool]");
+  if(poolInputs.length||$("adminBody").querySelector("[data-musicmode]")){
+    if(poolInputs.length){
+      CFG.music.pool=[...poolInputs].map(i=>{
+        let v=i.value.trim();
+        if(v&&!v.includes("/")&&!v.startsWith("data:"))v="assets/music/"+v;
+        return v;}).filter(v=>v&&v!=="assets/music/");
+    }
+  }
   $("adminBody").querySelectorAll("[data-music]").forEach(inp=>{
     const k=inp.dataset.music;
     let v=inp.value.trim();

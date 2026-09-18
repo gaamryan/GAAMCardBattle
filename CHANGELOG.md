@@ -4,6 +4,8 @@ All notable changes to GAAM Card Battle. Convention: add an entry under **Unrele
 
 ## Unreleased
 
+- **Two new battle tracks + music modes** — added `Briefing-at-Sunset.mp3` and `Dogfight-Arcade-Run.mp3`; new `music.mode` setting: `"random"` (default — each match plays a random track from the new `music.pool`) or `"stage"` (each stage's own track, as before). Admin → Music gets the mode toggle and a pool editor (add/remove tracks); per-stage track assignment stays on the Stages tab for stage mode. Admin overrides and cloud publish carry the new fields.
+
 - **Cloud backend (Supabase)** — Backend Phase 1: admin-published universal config (rules, cards, teams, stages, music) fetched by every client at boot; online accounts (email+password) with claimed player names; cloud-synced decks (server-enforced 5-deck cap) and stats; global leaderboard section; admin panel gated to ryan@gaamgood.com with a "🌍 Publish to ALL Players" button (server-enforced via RLS). Fully offline-tolerant: no network → prior local behavior. Project: supabase `gaam-card-battle` (rzaajtnvdatuvlcsefqa).
 
 - Deployed to production: gaam-card-battle.vercel.app (Vercel auto-deploys from GitHub `main`). Roadmap step 1 complete; playtesting now possible over public HTTPS.

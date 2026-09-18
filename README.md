@@ -136,7 +136,9 @@ The **admin** is the signed-in `ryan@gaamgood.com` account: only it sees the ⚙
 
 ## Music
 
-Each screen and location has its own soundtrack, configured in `config.js → music` (keys: `menu`, `battle`, plus any location id). Every entry has `src` — an MP3 path — and a synth theme (`chords` + `beat`). Drop MP3s into `assets/music/` matching the configured names (e.g. `frozen_wastes.mp3`, `menu.mp3`) and they play automatically, looped; missing or unplayable files fall back to that entry's built-in synth theme, so the game always has music. Battle music is the first picked location's track, falling back to `battle`.
+Each screen and location has its own soundtrack, configured in `config.js → music` (keys: `menu`, `battle`, plus any location id). Every entry has `src` — an MP3 path — and a synth theme (`chords` + `beat`). Drop MP3s into `assets/music/` matching the configured names (e.g. `frozen_wastes.mp3`, `menu.mp3`) and they play automatically, looped; missing or unplayable files fall back to that entry's built-in synth theme, so the game always has music.
+
+Battle music has two modes, set by `music.mode` (toggle in Admin → Music): **`"random"`** (the default) picks one track per match from the `music.pool` array — currently Backseat-Victory-epic, Briefing-at-Sunset, Dogfight-Arcade-Run, and Backseat Victory; **`"stage"`** plays the first picked location's own track, falling back to `battle`. Either way, missing files fall back to the default battle MP3, then the synth theme.
 
 ## Card set
 
@@ -144,7 +146,7 @@ Each screen and location has its own soundtrack, configured in `config.js → mu
 
 ## Admin panel (the in-game editor)
 
-⚙️ on the menu, or go straight to **`index.html#admin`** — the admin has its own URL (deep-linkable, browser back/forward close and reopen it; a hosted deployment can map `/admin` to it with a redirect). On desktop it expands to a wide two-pane layout with a side nav: **Rules**, **Stages** (rename locations, swap background images, pick gameplay effects/FX, set per-stage music), **Music** (home screen + default battle tracks), and **Cards**. Edits survive switching sections and only persist on Apply & Save.
+⚙️ on the menu, or go straight to **`index.html#admin`** — the admin has its own URL (deep-linkable, browser back/forward close and reopen it; a hosted deployment can map `/admin` to it with a redirect). On desktop it expands to a wide two-pane layout with a side nav: **Rules**, **Stages** (rename locations, swap background images, pick gameplay effects/FX, set per-stage music), **Music** (battle-music mode toggle + random pool editor, home screen + default battle tracks), and **Cards**. Edits survive switching sections and only persist on Apply & Save.
 
 Admin changes — including uploaded card art and stage backgrounds — apply to **both players in every multiplayer match you host**: the full shared config (rules, card stats + images, stages, teams, music picks) is sent to your opponent at match start and for rematches, so you both see the identical game. Your opponent's own settings return when they leave the results screen. To make changes permanent for *everyone who loads the game* (not just matches you host), use **Export config.js** and replace the file in the deployed folder — uploaded images are embedded in the export.
 
