@@ -113,6 +113,10 @@ Team extras (all tunable in `rules`):
 - **Scorch marks** — destroyed cards leave a faint 💀 mark in the slot row where they fell, so the board tells the story of the match.
 - **Deck builder team filter** — chips above the collection grid filter by team, making super-focused decks quick to assemble.
 
+## Emotes
+
+During online matches, the 😀 pill in the top bar opens six quick reactions (👍 😱 😂 💀 "GG" "Nice one!") that pop up as speech bubbles on both players' screens, with a short cooldown to prevent spam. Edit the set in `config.js → emotes` — the host's set is what both players see.
+
 ## Instant rematch
 
 🔄 on the results screen. Vs AI it restarts on the spot. In multiplayer it's an offer/accept handshake over the still-open connection: click to offer ("⏳ Waiting…"), your opponent's button turns into "Accept Rematch!", and when both agree the host deals a fresh seed and the next match starts immediately — no codes to re-enter. The button disappears if your opponent leaves. (The connection now stays open on the results screen; it closes when either player returns to the menu.)

@@ -47,6 +47,7 @@ Messages over one PeerJS reliable channel:
 | `plays` | `{turn, plays:[{cardId,locIdx,order} \| {super:true,teamId,locIdx,graveIdx,order}]}` | both, each turn |
 | `rematch` | — | offer/accept handshake |
 | `snap` | — | sender doubled the cube stake |
+| `emote` | `{i}` | index into the shared emote set (5s client cooldown) |
 | `bye` | — | concede |
 
 Hands and decks never leave the owning client; only plays travel. Both clients replay the same reveal deterministically because: (1) the shared `mulberry32(seed)` is consumed **only** for shared decisions — location pick at start, super-attack targets — never for private draws/shuffles (those use `Math.random`); (2) reveal order is canonical — priority side first (more locations won; host on ties), then per-side plays by `order` with supers last (stable sort); (3) all power math is pure. **Rule: inside anything that runs during reveal, use `ctx.rng()`/`G.rng()`, never `Math.random`.** `pendingPlays` is keyed by turn so an early-finishing opponent's next-turn message is never lost.

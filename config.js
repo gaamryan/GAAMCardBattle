@@ -424,6 +424,11 @@ window.GAAM_CONFIG = {
                      beat: 1.4 },
   },
 
+  /* ── EMOTES ────────────────────────────────────────────────────────────
+     Canned multiplayer reactions (😀 pill in the top bar during MP
+     matches). Edit freely — max 8 shown, plain text or emoji.           */
+  emotes: ["👍","😱","😂","💀","GG","Nice one!"],
+
   /* ── ANNOUNCER VOICE ───────────────────────────────────────────────────
      Arcade announcer for the big banner moments (round starts, supers,
      revives, snaps, results). Uses the browser's speech synthesis — no

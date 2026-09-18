@@ -145,6 +145,15 @@ body{display:flex;align-items:center;justify-content:center;
   transition:transform .1s,filter .2s;}
 #btnEnd:active{transform:translateY(2px);box-shadow:0 1px 0 #a86a00;}
 #btnEnd:disabled{filter:grayscale(.7) brightness(.55);cursor:not-allowed;}
+#emoteStrip{position:absolute;top:44px;left:50%;transform:translateX(-50%);z-index:80;
+  display:none;gap:6px;background:#101024ee;border:1px solid #ffffff26;border-radius:14px;padding:8px;}
+#emoteStrip button{border:none;background:#ffffff12;border-radius:10px;padding:7px 10px;cursor:pointer;
+  font-size:16px;color:var(--ink);font-weight:800;}
+#emoteStrip button:active{transform:scale(.92);}
+.emoteBubble{position:absolute;z-index:81;left:50%;transform:translateX(-50%) scale(0);
+  background:#fff;color:#111;font-weight:900;font-size:17px;padding:9px 14px;border-radius:16px;
+  box-shadow:0 6px 22px #0009;pointer-events:none;white-space:nowrap;}
+.emoteBubble.mine{bottom:26%;} .emoteBubble.theirs{top:9%;}
 #energyNext{font-size:9px;color:var(--dim);letter-spacing:.5px;margin-top:2px;}
 #btnUndo{width:100%;margin-bottom:6px;padding:6px 4px;border-radius:12px;border:1px solid #ffffff2a;
   cursor:pointer;font-weight:800;font-size:11px;color:var(--ink);background:#ffffff10;display:none;}
@@ -446,9 +455,12 @@ body{display:flex;align-items:center;justify-content:center;
     <span class="pill" id="oppPill"><b id="oppName">AI</b> · Hand: <span id="oppHand">3</span></span>
     <span class="pill" id="turnPill">Turn <b id="turnNow">1</b>/<span id="turnMax">6</span> <span id="turnTimer"></span></span>
     <span class="pill" id="btnQuit" title="Concede match">🏳</span>
+    <span class="pill" id="btnEmote" title="Send a reaction" style="cursor:pointer;display:none">😀</span>
     <span class="pill" id="btnVoice" title="Toggle announcer" style="cursor:pointer">🎙</span>
     <span class="pill" id="btnMute" title="Toggle sound">🔊</span>
   </div>
+
+  <div id="emoteStrip"></div>
 
   <!-- ---- Board: 3 locations, enemy slots on top, mine below ---- -->
   <div id="board"></div>
@@ -1909,7 +1921,7 @@ function renderHowTo(){
     sec("🏗 DECKS",
       `Build up to 5 decks of ${gold(R.deckSize)} cards (max 2 copies each) in the Deck Builder; ★ Set Active picks the one you play. Short decks are padded automatically.`)+
     sec("📡 MULTIPLAYER",
-      `Host a match to get a code; your friend hits Join and enters it. Only your plays travel — hands stay private. Rematch instantly from the results screen. With an online account your decks, stats, rating and unlocks follow you to any device.`)+
+      `Host a match to get a code; your friend hits Join and enters it. Only your plays travel — hands stay private. Tap ${gold("😀")} to send a reaction. Rematch instantly from the results screen. With an online account your decks, stats, rating and unlocks follow you to any device.`)+
     sec("⏩ GOOD TO KNOW",
       `Tap anywhere during a reveal to fast-forward it. ${gold("↩ Undo")} takes back your last play. The energy box shows next turn's energy. New players get a glowing hint on the best location while dragging. 🎙 toggles the announcer, 🔊 the sound. 🏳 concedes.`);
 }
@@ -2072,6 +2084,50 @@ $("btnSnap").onclick=()=>{
   if(G.phase!=="staging"||G.snapped.me)return;
   audio.click();doSnap("me");
   if(G.mode!=="ai")net.send({t:"snap"});
+};
+/* ── EMOTES: canned reactions over the wire (multiplayer only) ── */
+let _emoteCool=0;
+function emoteList(){return (CFG.emotes&&CFG.emotes.length?CFG.emotes:["👍","😱","😂","💀","GG","Nice one!"]).slice(0,8);}
+function updateEmoteBtn(){
+  const b=$("btnEmote");if(!b)return;
+  b.style.display=(G.mode!=="ai"&&G.phase!=="menu"&&G.phase!=="over")?"":"none";
+  if(b.style.display==="none")$("emoteStrip").style.display="none";
+}
+function buildEmoteStrip(){
+  const st=$("emoteStrip");st.innerHTML="";
+  emoteList().forEach((e2,i)=>{
+    const b=document.createElement("button");
+    b.textContent=e2;
+    b.onclick=()=>{
+      st.style.display="none";
+      const now=Date.now();
+      if(now<_emoteCool){toast("Easy there — emotes cool down for a few seconds");return;}
+      _emoteCool=now+5000;
+      audio.click();
+      showEmoteBubble(e2,true);
+      net.send({t:"emote",i});
+    };
+    st.appendChild(b);
+  });
+}
+function showEmoteBubble(txt,mine){
+  const d=document.createElement("div");
+  d.className="emoteBubble "+(mine?"mine":"theirs");
+  d.textContent=txt; /* textContent: emote strings are host-editable */
+  frame.appendChild(d);
+  if(d.animate)d.animate([
+    {transform:"translateX(-50%) scale(0)",opacity:0},
+    {transform:"translateX(-50%) scale(1.15)",opacity:1,offset:.25},
+    {transform:"translateX(-50%) scale(1)",opacity:1,offset:.4},
+    {transform:"translateX(-50%) scale(1)",opacity:1,offset:.8},
+    {transform:"translateX(-50%) scale(.6) translateY(-14px)",opacity:0}
+  ],{duration:2400,easing:"ease-out"});
+  setTimeout(()=>d.remove(),2400);
+}
+$("btnEmote").onclick=()=>{
+  const st=$("emoteStrip");
+  if(st.style.display==="flex"){st.style.display="none";return;}
+  buildEmoteStrip();st.style.display="flex";
 };
 /* tap anywhere during a reveal to fast-forward the rest of it */
 frame.addEventListener("pointerdown",()=>{
@@ -2348,6 +2404,7 @@ function renderAll(){
   $("deckCount").textContent="Deck: "+G.me.deck.length;
   $("graveCount").textContent="💀 "+G.me.grave.length;
   updateSnapUI();
+  updateEmoteBtn();
   $("btnUndo").style.display=(G.phase==="staging"&&G.me.staged.length)?"block":"none";
   const nx=$("energyNext");
   if(nx)nx.textContent=(G.phase!=="menu"&&G.turn<R.turns)
@@ -2770,6 +2827,7 @@ function netCfg(){
     teams:CFG.teams,
     music:CFG.music,
     voice:CFG.voice,
+    emotes:CFG.emotes,
   };
   try{
     const size=JSON.stringify(cfg).length;
@@ -2860,6 +2918,7 @@ function handleNet(d){
   switch(d.t){
     case "bye": endMatchConceded("me","OPPONENT CONCEDED!");break;
     case "snap": doSnap("op");break;
+    case "emote": showEmoteBubble(emoteList()[d.i]||"👍",false);audio.play("chime");break;
     case "rematch":
       G.rematch=G.rematch||{me:false,op:false};
       G.rematch.op=true;
@@ -2878,7 +2937,8 @@ function handleNet(d){
         if(d.cfg.locations)CFG.locations=d.cfg.locations;
         if(d.cfg.teams)CFG.teams=d.cfg.teams;
         if(d.cfg.music)CFG.music=d.cfg.music;
-        if(d.cfg.voice)CFG.voice=d.cfg.voice;}
+        if(d.cfg.voice)CFG.voice=d.cfg.voice;
+        if(d.cfg.emotes)CFG.emotes=d.cfg.emotes;}
       G.remoteName=d.name||G.remoteName;
       startMatch("guest",{seed:d.seed});break;
     case "plays": onOppPlays(d);break;
@@ -3353,7 +3413,7 @@ const Cloud={
 function applyPublishedConfig(pub){
   if(!pub||typeof pub!=="object")return;
   if(pub.rules)Object.assign(CFG.rules,pub.rules);
-  ["cards","locations","teams","music","voice","sprites","fxLibrary","superFinishers"]
+  ["cards","locations","teams","music","voice","emotes","sprites","fxLibrary","superFinishers"]
     .forEach(k=>{if(pub[k])CFG[k]=pub[k];});
   Admin.applyStored();
 }

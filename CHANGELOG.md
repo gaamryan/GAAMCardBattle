@@ -4,6 +4,8 @@ All notable changes to GAAM Card Battle. Convention: add an entry under **Unrele
 
 ## Unreleased
 
+- **😀 Multiplayer emotes** — tap the 😀 pill during an online match to send one of six reactions (👍 😱 😂 💀 "GG" "Nice one!"); they pop up as speech bubbles on both screens, with a 5-second cooldown. The set is editable in `config.js → emotes` (host's set syncs to the guest; publishable via the admin).
+
 - **🎯 Daily challenges** — three per day, identical for every player (date-seeded pick from a 10-challenge pool: wins, supers, revives, snapped wins, perfect games, power thresholds, team decks, cube banking). Progress tracks automatically across matches; rewards (+2/+3 🎲 or a bonus card unlock) land with a "CHALLENGE COMPLETE!" banner. Menu button shows today's 0–3 count; `rules.dailiesEnabled: 0` disables.
 
 - **QoL trio**: ↩ **Undo** button takes back your last play (cards and armed supers, full refund); the energy box shows **next turn's energy** ("next: 4⚡") for planning ahead; **rookie hints** glow the best location while a new player drags a card (auto-disables after `rules.hintGamesMax` games; `rules.hintsEnabled: 0` turns it off).
