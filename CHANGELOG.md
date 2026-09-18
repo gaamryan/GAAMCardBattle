@@ -4,6 +4,11 @@ All notable changes to GAAM Card Battle. Convention: add an entry under **Unrele
 
 ## Unreleased
 
+- **Account fixes & cross-device sync**:
+  - Fixed account creation: signups were stuck on email confirmation that could never arrive (Supabase's built-in mailer only reaches project members). Accounts are now auto-confirmed server-side (`gaam_autoconfirm` trigger; existing stuck accounts confirmed) and the client signs you in immediately after Create Account.
+  - **Full cross-device restore**: signing in on any device now pulls your stats (wins/streaks/rating/cubes — whichever side has more games wins), your card unlocks (new `profiles.unlocked`, merged by union), and your decks (already synced). Unlock grants push up as they happen.
+  - **Play as guest** — the account screen now has a "Skip — play as guest" button; no account is ever required for a quick game (guest progress stays on the device and merges into an account's cloud data if they sign up later on that device).
+
 - **Backend Phase 2** (roadmap step 5, partial): ⭐ **Elo ratings** (start 1000, K=32, multiplayer matches only — each client rates itself against the opponent's published rating) and 🎲 cube totals now live in the cloud `stats` table; the 🌍 global leaderboard ranks by rating and shows rating/W/L/cubes. Every finished match also files a **raw match report** (mode, outcome, totals, cube stake, and the shared MP seed) into a new RLS-protected `match_reports` table — the seed is what makes server-side re-sim **verification possible in Phase 3**. Remaining for Phase 3 (see docs/ONLINE_BACKEND.md): extract `engine.js`, verify reports by re-simulation, seasons, hosted matchmaking + TURN.
 
 - **Retention loop** (roadmap step 4 complete):

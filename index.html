@@ -2718,7 +2718,9 @@ const Unlocks={
   grantRandom(){ /* returns the newly unlocked card def, or null */
     const l=this.locked();if(!l.length)return null;
     const c=l[Math.floor(Math.random()*l.length)];
-    const o=this.load();o.ids.push(c.id);this.save(o);return c;},
+    const o=this.load();o.ids.push(c.id);this.save(o);
+    Cloud.pushUnlocks(); /* best-effort cross-device sync */
+    return c;},
 };
 const Stats={
   _key(){return "gaam_stats::"+Users.current();},
@@ -2834,7 +2836,7 @@ const Cloud={
         const {data}=await this.sb.from("profiles").select("*").eq("id",u.id).maybeSingle();
         this.profile=data||null;
         this.needsName=!data;
-        if(data)await this.pullDecks();
+        if(data){await this.pullDecks();await this.pullStats();this.pullUnlocks(data);}
       }catch(e){}
     }
     refreshUserBtn();
@@ -2844,7 +2846,12 @@ const Cloud={
   async signUp(email,pass){
     const {data,error}=await this.sb.auth.signUp({email,password:pass});
     if(error)return error.message;
-    if(data&&!data.session)return "Check your email to confirm your account, then sign in.";
+    if(data&&!data.session){
+      /* accounts are auto-confirmed server-side; finish by signing in */
+      const {error:e2}=await this.sb.auth.signInWithPassword({email,password:pass});
+      if(e2)return /confirm/i.test(e2.message)
+        ?"Account created — check your email to confirm, then sign in.":e2.message;
+    }
     return null;
   },
   async signIn(email,pass){
@@ -2859,6 +2866,7 @@ const Cloud={
       .insert({id:this.user.id,display_name:name});
     if(error)return /duplicate|unique/i.test(error.message)?"That name is taken":error.message;
     this.profile={id:this.user.id,display_name:name};this.needsName=false;
+    this.pushUnlocks(); /* seed the new profile's unlock list */
     refreshUserBtn();
     return null;
   },
@@ -2898,6 +2906,44 @@ const Cloud={
     try{
       await this.sb.from("decks").update({is_active:false}).eq("user_id",this.user.id);
       if(cloudId)await this.sb.from("decks").update({is_active:true}).eq("id",cloudId);
+    }catch(e){}
+  },
+  /* on sign-in, restore the account's cloud stats onto this device.
+     Whichever side has MORE games is the truth (a fresh device has 0). */
+  async pullStats(){
+    if(!this.user||!this.profile)return;
+    try{
+      const {data}=await this.sb.from("stats")
+        .select("*").eq("user_id",this.user.id).maybeSingle();
+      if(!data)return;
+      const local=Stats.load();
+      const cloudGames=(data.win||0)+(data.lose||0)+(data.draw||0);
+      const localGames=(local.win||0)+(local.lose||0)+(local.draw||0);
+      if(cloudGames>localGames){
+        Stats.save({games:cloudGames,win:data.win||0,lose:data.lose||0,draw:data.draw||0,
+          streak:data.streak||0,bestStreak:data.best_streak||0,bestPower:data.best_power||0,
+          rating:data.rating||1000,cubes:data.cubes||0,history:data.history||[]});
+      }
+    }catch(e){}
+  },
+  /* card unlocks travel with the profile (profiles.unlocked jsonb) */
+  pullUnlocks(profileRow){
+    try{
+      if(!Unlocks.enabled())return;
+      const cloud=Array.isArray(profileRow&&profileRow.unlocked)?profileRow.unlocked:null;
+      if(!cloud)return this.pushUnlocks(); /* first device: seed the cloud */
+      const o=Unlocks.load();if(!o)return;
+      const merged=[...new Set([...o.ids,...cloud])]
+        .filter(id=>CFG.cards.some(c=>c.id===id));
+      Unlocks.save({ids:merged});
+      if(merged.length>cloud.length)this.pushUnlocks();
+    }catch(e){}
+  },
+  async pushUnlocks(){
+    if(!this.user||!this.profile||!Unlocks.enabled())return;
+    try{
+      const o=Unlocks.load();if(!o)return;
+      await this.sb.from("profiles").update({unlocked:o.ids}).eq("id",this.user.id);
     }catch(e){}
   },
   async pushStats(){
@@ -3101,8 +3147,14 @@ function renderCloudAuth(){
       const err=await Cloud.signUp(em.value.trim(),pw.value);
       if(err)toast(err,3200);else toast("Account created!");};
     r.append(si,su);box.appendChild(r);
+    const guest=btn("🎮 Skip — play as guest");
+    guest.style.cssText+="margin-top:6px;width:100%;";
+    guest.onclick=()=>{audio.click();
+      closeOverlay("userOverlay");
+      toast("Playing as guest — progress stays on this device",2600);};
+    box.appendChild(guest);
     const note=document.createElement("div");note.className="subtext";
-    note.textContent="Online accounts sync your decks and stats across devices and rank you on the global leaderboard.";
+    note.textContent="An online account carries your decks, stats, card unlocks, rating and cubes to any device, and ranks you on the global leaderboard. No account needed for a quick game — jump right in as a guest.";
     box.appendChild(note);
   }
 }
