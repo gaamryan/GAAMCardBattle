@@ -4,7 +4,9 @@ A single-player + P2P multiplayer, Marvel Snap–style card battler prototype. F
 
 ## Run it
 
-Double-click `index.html` (works from `file://`), or serve the folder for multiplayer reliability:
+**Play it live: [gaam-card-battle.vercel.app](https://gaam-card-battle.vercel.app)** — auto-deployed from `main` on every push.
+
+For local development: double-click `index.html` (works from `file://`), or serve the folder for multiplayer reliability:
 
 ```
 python -m http.server 8000

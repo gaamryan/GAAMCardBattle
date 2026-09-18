@@ -2,8 +2,8 @@
 
 Prioritized plan (details in SHIP_PLAN.md / ONLINE_BACKEND.md / BUG_HUNT.md):
 
-1. **Deploy + real playtest** — static host (Netlify/Cloudflare Pages), HTTPS, exclude the ~1 GB `effects/` source folder from the deploy. Play real matches over the codes.
-2. **Playtest QoL block** — turn timer, tap-to-fast-forward reveals, rematch button, `prefers-reduced-motion` switch.
+1. ~~**Deploy**~~ ✅ DONE (2026-09-17): live at **gaam-card-battle.vercel.app** via Vercel↔GitHub auto-deploy — every push to `main` ships automatically; `effects/` excluded via .gitignore. Remaining: **real playtest** — play matches with real people over the matchmaking codes. Note: to publish admin edits (art/rules) to the live site, use Admin → Export config.js → commit → push.
+2. **Playtest QoL block** — turn timer, tap-to-fast-forward reveals, `prefers-reduced-motion` switch. (~~Rematch button~~ ✅ done — instant rematch with MP offer/accept handshake shipped in 0.1.0.)
 3. **Balance from data** — headless batch simulator (500 AI-vs-AI matches → per-card win-rate deltas) built on the jsdom harness. Suspects: cheap-team early supers, Leviathan 6/13.
 4. **Retention loop** — card unlock progression; Snap/Retreat cube mechanic (concede button is the seed).
 5. **Backend Phases 1–2** — Supabase sign-ins, cross-device deck sync, global leaderboard.
