@@ -93,13 +93,13 @@ Note on the `.mov` clips in `effects/` (Blobs, Electricity, Lightnings, …): th
 
 ## Inspecting cards
 
-Tap any card — in your hand or placed on the board by either player — to open an enlarged inspector showing cost, base power, current power at its location, and ability text. Tap a *staged* (gold-dashed) card to take it back instead; it flies back to your hand with an energy refund.
+**Double-tap** any card — in your hand or placed on the board by either player — to open an enlarged inspector showing cost, base power, current power at its location, and ability text. (A single tap just previews it in the info bar, so you can't open the big view by accident while dragging.) Tap a *staged* (gold-dashed) card to take it back instead; it flies back to your hand with an energy refund.
 
 ## Teams & Super Moves
 
 Every card can belong to a **team** (`config.js → teams`) — shown as a colored dot on the card and named in the inspector. Five teams ship: The Emberkin 🔥, The Stormbound ⚡, and The Frostborn ❄ (Super Attacks), plus The Radiant ✨ and The Gravewalkers 🌑 (Super Revives).
 
-Land `rules.superTeamSize` (default 3) members of one team on the same location — **cards you've staged this turn count too** — and a pulsing **⚡ SUPER** button appears there during staging. How often supers fire is fully tunable in `rules`: by default a super costs **3 energy** (`superCost`/`superCostMode:"fixed"`) and you can keep playing cards; each team gets **2 uses per match** (`superUsesPerTeam`, shown on the button) with a **1-turn cooldown** between them (`superCooldownTurns`). Cancel before ending the turn for a full refund. The original harsher rule set is one flip away: `superCostMode:"all"` + `superBlocksPlays:true` + `superUsesPerTeam:1`. All numeric knobs are editable live in Admin → Rules.
+Land `rules.superTeamSize` (default **2**) members of one team on the same location — **cards you've staged this turn count too** — and a pulsing **⚡ SUPER** button appears there during staging. How often supers fire is fully tunable in `rules`: by default a super costs **2 energy** (`superCost`/`superCostMode:"fixed"`) and you can keep playing cards; each team gets **2 uses per match** (`superUsesPerTeam`, shown on the button) with **no cooldown** between them (`superCooldownTurns: 0`). Default decks are padded team-first (two random teams fill the empty slots), so teammates naturally end up together and supers come up in normal play. Cancel before ending the turn for a full refund. The original harsher rule set is one flip away: `superCostMode:"all"` + `superBlocksPlays:true` + `superUsesPerTeam:1`. All numeric knobs are editable live in Admin → Rules.
 
 - **Super Attack** — at reveal, the team charges up (banner + glow + converging beams), then obliterates a *random* enemy card at that location. The victim shatters and goes to its owner's **graveyard** (💀 counter next to your deck — tap to browse).
 - **Super Revive** — pick any card from your graveyard; it returns to the location wearing a golden **halo**, with an angelic burst and a giant "*CARDNAME* HAS BEEN REVIVED!" banner.

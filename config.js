@@ -47,12 +47,12 @@ window.GAAM_CONFIG = {
     aiThinkMs: 900,         // fake AI "thinking" delay
     revealStaggerMs: 900,   // pause between each card reveal
     interactStaggerMs: 130, // pause between multi-target ability hits
-    superTeamSize: 3,       // team members needed at one location to unlock a Super
+    superTeamSize: 2,       // team members needed at one location to unlock a Super
     superUsesPerTeam: 2,    // times each team can fire its Super per match
-    superCooldownTurns: 1,  // turns a team must wait between Supers
+    superCooldownTurns: 0,  // turns a team must wait between Supers
     superCostMode: "fixed", // "fixed": Super costs superCost energy and you can
                             //   still play cards; "all": consumes ALL energy
-    superCost: 3,           // energy price in "fixed" mode
+    superCost: 2,           // energy price in "fixed" mode
     superBlocksPlays: false,// true = arming a Super ends your card plays (old rule)
     superCountStaged: true, // staged (not yet revealed) cards count toward team size
     teamSynergyMin: 2,      // teammates together at a location to trigger synergy

@@ -125,3 +125,8 @@ It's an asset-source directory, not a runtime dependency — only `assets/` is l
 ## Verification currently in place
 
 Headless jsdom simulation plays a complete 6-turn match (greedy player vs smart AI) asserting: match reaches turn 6, no location overflow, no unrevealed cards on board, no negative energy, result overlay renders. Playwright/Chromium screenshot runs verify real rendering at 390×844 and 1440×900, including deck builder, admin (desktop), inspector animation frames, interaction projectiles/impacts, and the leaderboard. Re-run both after every engine change.
+
+## #25 — AI crash: staged Super entry read as a card (FIXED 2026-09-17)
+**Severity:** high (aborted the AI's whole turn mid-loop).
+**Repro:** any AI turn where a Super became eligible before the play loop (possible once `aiTrySupers` ran first): `aiSmart`'s board math did `P.staged.filter(s=>s.locIdx===li).reduce((t,s)=>t+s.card.def.power,0)` — super entries have no `.card`, so `s.card.def` threw, killing `aiTakeTurn`.
+**Fix:** filter `!s.super` in that reduce. Latent since Supers shipped; exposed by the supers-first AI ordering.

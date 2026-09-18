@@ -1113,18 +1113,23 @@ function flyCard(def,fromRect,toEl,{facedown=false,dur=340,arc=34,trail=null}={}
       t.style.setProperty("--dy",(6+Math.random()*14)+"px");
       $("fxLayer").appendChild(t);setTimeout(()=>t.remove(),480);
     },30);
+    /* clone is laid out at DESTINATION size and scaled uniformly during
+       flight, so the card keeps its proportions no matter how differently
+       shaped the source rect is (deck pill, hand slot, board slot). */
     Object.assign(clone.style,{position:"absolute",inset:"auto",zIndex:"65",
-      left:(fromRect.left-f.left)+"px",top:(fromRect.top-f.top)+"px",
-      width:fromRect.width+"px",height:fromRect.height+"px",
-      transformOrigin:"top left",pointerEvents:"none"});
+      left:(to.left-f.left)+"px",top:(to.top-f.top)+"px",
+      width:to.width+"px",height:to.height+"px",
+      transformOrigin:"center center",pointerEvents:"none"});
     frame.appendChild(clone);
     toEl.style.visibility="hidden";
-    const dx=to.left-fromRect.left,dy=to.top-fromRect.top;
-    const sw=to.width/Math.max(1,fromRect.width),sh=to.height/Math.max(1,fromRect.height);
+    const dx=(fromRect.left+fromRect.width/2)-(to.left+to.width/2);
+    const dy=(fromRect.top+fromRect.height/2)-(to.top+to.height/2);
+    const s0=Math.max(0.35,Math.min(1.6,
+      ((fromRect.width/Math.max(1,to.width))+(fromRect.height/Math.max(1,to.height)))/2));
     const anim=clone.animate([
-      {transform:"translate(0px,0px) scale(1,1) rotate(0deg)"},
-      {transform:`translate(${dx*0.55}px,${dy*0.55-arc}px) scale(${(1+sw)/2},${(1+sh)/2}) rotate(5deg)`,offset:0.55},
-      {transform:`translate(${dx}px,${dy}px) scale(${sw},${sh}) rotate(0deg)`}
+      {transform:`translate(${dx}px,${dy}px) scale(${s0}) rotate(0deg)`},
+      {transform:`translate(${dx*0.45}px,${dy*0.45-arc}px) scale(${(s0+1)/2}) rotate(5deg)`,offset:0.55},
+      {transform:"translate(0px,0px) scale(1) rotate(0deg)"}
     ],{duration:dur,easing:"cubic-bezier(.25,.8,.3,1)"});
     let finished=false;
     const done=()=>{if(finished)return;finished=true;
@@ -1338,10 +1343,17 @@ function buildDeck(owner){
   const ids=(owner==="me")?Decks.activeCards():null;
   if(ids)ids.forEach(id=>{const def=CFG.cards.find(c=>c.id===id);
     if(def&&deck.length<R.deckSize)deck.push(makeCard(def,owner));});
-  /* pad short decks with defaults, respecting the 2-copies-per-card cap */
+  /* pad short decks with a TEAM-FOCUSED default (2-copies-per-card cap):
+     two random teams' members fill first so teammates actually end up in
+     the same deck — that's what makes Supers reachable in normal play. */
+  const teamIds=Object.keys(CFG.teams||{});
+  const picks=shuffle([...teamIds]).slice(0,2);
+  const inPick=c=>{const t=teamOf(c.id);return t&&picks.includes(t.id);};
+  const pool=shuffle(CFG.cards.filter(inPick))
+    .concat(shuffle(CFG.cards.filter(c=>!inPick(c))));
   let i=0,guard=0;
-  while(deck.length<R.deckSize&&guard++<400){
-    const def=CFG.cards[i%CFG.cards.length];i++;
+  while(deck.length<R.deckSize&&guard++<400&&pool.length){
+    const def=pool[i%pool.length];i++;
     if(deck.filter(c=>c.def.id===def.id).length<2)deck.push(makeCard(def,owner));
   }
   return shuffle(deck); // local shuffle: hands/decks stay private in multiplayer
@@ -2044,12 +2056,12 @@ function renderAll(){
         if(d)d.classList.add("synergy");}};
     L.cards.op.forEach((c,k)=>{if(k<opSlots.length){
       const el=createCardEl(c,{power:cardPower(c,i,"op")});
-      el.onclick=()=>inspectCard(c,{locIdx:i,side:"op"});
+      el.onclick=()=>{if(dblTap(c.uid))inspectCard(c,{locIdx:i,side:"op"});};
       markSynergy(el,c,"op");
       opSlots[k].appendChild(el);}});
     L.cards.me.forEach((c,k)=>{if(k<meSlots.length){
       const el=createCardEl(c,{power:cardPower(c,i,"me")});
-      el.onclick=()=>inspectCard(c,{locIdx:i,side:"me"});
+      el.onclick=()=>{if(dblTap(c.uid))inspectCard(c,{locIdx:i,side:"me"});};
       markSynergy(el,c,"me");
       meSlots[k].appendChild(el);}});
     /* my staged (unrevealed) cards — dashed gold, click to take back */
@@ -2220,9 +2232,18 @@ window.addEventListener("pointermove",(e)=>{
     c.querySelectorAll(".slot").forEach(s=>s.classList.toggle("hot",i===li&&canStage(drag.card,li)));
   });
 },{passive:false});
+/* double-tap detector: inspector opens on the 2nd tap of the same card
+   within 400ms (single taps still preview in the info bar / do nothing). */
+let _lastTap={id:null,t:0};
+function dblTap(id){
+  const now=performance.now();
+  const hit=_lastTap.id===id&&(now-_lastTap.t)<400;
+  _lastTap=hit?{id:null,t:0}:{id,t:now};
+  return hit;
+}
 window.addEventListener("pointerup",(e)=>{
   if(!drag)return;
-  if(!drag.active){inspectCard(drag.card);} /* tap without drag = inspect */
+  if(!drag.active){if(dblTap(drag.card.uid))inspectCard(drag.card);} /* double-tap = inspect */
   else{
     const li=locUnderPoint(e.clientX,e.clientY);
     if(li!=null&&canStage(drag.card,li))stageCard(drag.idx,li);
@@ -2314,6 +2335,9 @@ const AI_ABILITY_VALUE={
 };
 function aiSmart(){
   const P=G.op;
+  /* fire supers FIRST so playing out the hand can't starve them of energy,
+     then again after staging (staged teammates can newly unlock one). */
+  aiTrySupers(P);
   let played=true;
   while(played){
     played=false;
@@ -2324,7 +2348,7 @@ function aiSmart(){
         /* board math: my visible total vs op total incl. already-staged */
         const meT=G.locs[li].cards.me.reduce((t,c)=>t+cardPower(c,li,"me"),0);
         const opT=G.locs[li].cards.op.reduce((t,c)=>t+cardPower(c,li,"op"),0)
-                 +P.staged.filter(s=>s.locIdx===li).reduce((t,s)=>t+s.card.def.power,0);
+                 +P.staged.filter(s=>!s.super&&s.locIdx===li).reduce((t,s)=>t+s.card.def.power,0);
         let v=card.def.power;
         const eff=G.locs[li].def.effectId;
         if(eff&&LOCATION_EFFECTS[eff]&&LOCATION_EFFECTS[eff].perCard)
@@ -2335,7 +2359,7 @@ function aiSmart(){
         const tmv=teamOf(card.def.id);
         if(tmv){const n=G.locs[li].cards.op.filter(c=>{
             const t2=teamOf(c.def.id);return t2&&t2.id===tmv.id;}).length;
-          if(n>0)v+=n*1.5+(R.teamSynergyBonus??1);}
+          if(n>0)v+=n*2.5+(R.teamSynergyBonus??1);}
         const diff=opT-meT;
         if(diff<0&&diff+v>=0)v+=6;        // this play flips a losing location
         else if(diff<0&&diff+v>-3)v+=3;   // gets us close
@@ -2351,7 +2375,10 @@ function aiSmart(){
       played=true;
     }
   }
-  /* super moves: use the first worthwhile one this turn */
+  aiTrySupers(P);
+}
+/* super moves: use the first worthwhile one available */
+function aiTrySupers(P){
   for(const su of eligibleSupers("op")){
     const team=CFG.teams[su.teamId];
     const pay=()=>{

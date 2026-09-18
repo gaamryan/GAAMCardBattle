@@ -4,6 +4,11 @@ All notable changes to GAAM Card Battle. Convention: add an entry under **Unrele
 
 ## Unreleased
 
+- **Fly-in animation fix** — cards no longer distort during draw/throw/reveal flights: the animated clone is laid out at its destination size and scaled uniformly, instead of stretching non-uniformly between the source and target rectangles.
+- **Double-tap to inspect** — the big card inspector now opens on a double-tap (hand or board); a single tap only previews in the info bar, so releases after a drag or a stray tap no longer pop the modal.
+- **Supers are far easier to reach** — `superTeamSize` 3→2, `superCost` 3→2, `superCooldownTurns` 1→0; default decks are now padded team-first (two random teams fill the empty slots) so teammates actually co-locate; the AI values teammate stacking more and checks for supers *before* spending its energy on plays as well as after.
+- Fixed an AI crash when a Super was staged before its play loop (staged super entries have no `.card`; board-math reduce now skips them).
+
 - **Two new battle tracks + music modes** — added `Briefing-at-Sunset.mp3` and `Dogfight-Arcade-Run.mp3`; new `music.mode` setting: `"random"` (default — each match plays a random track from the new `music.pool`) or `"stage"` (each stage's own track, as before). Admin → Music gets the mode toggle and a pool editor (add/remove tracks); per-stage track assignment stays on the Stages tab for stage mode. Admin overrides and cloud publish carry the new fields.
 
 - **Cloud backend (Supabase)** — Backend Phase 1: admin-published universal config (rules, cards, teams, stages, music) fetched by every client at boot; online accounts (email+password) with claimed player names; cloud-synced decks (server-enforced 5-deck cap) and stats; global leaderboard section; admin panel gated to ryan@gaamgood.com with a "🌍 Publish to ALL Players" button (server-enforced via RLS). Fully offline-tolerant: no network → prior local behavior. Project: supabase `gaam-card-battle` (rzaajtnvdatuvlcsefqa).
