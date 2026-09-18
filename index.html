@@ -505,6 +505,8 @@ body{display:flex;align-items:center;justify-content:center;
     <div class="ovTitle">👤 ACCOUNTS</div>
     <div class="subtext">Each account has its own decks (up to 5), stats, and
       leaderboard entry — all stored on this device.</div>
+    <div id="cloudAuth" style="width:min(84%,300px);display:flex;flex-direction:column;gap:8px;"></div>
+    <div class="lbHead" style="text-align:center">LOCAL (THIS DEVICE)</div>
     <div id="userList"></div>
     <div style="display:flex;gap:8px;width:min(78%,280px)">
       <input id="newUserName" placeholder="New account name" maxlength="14"
@@ -546,6 +548,7 @@ body{display:flex;align-items:center;justify-content:center;
     </div>
     <div class="rowBtns">
       <button class="mbtn primary" id="btnAdminApply">Apply &amp; Save</button>
+      <button class="mbtn" id="btnAdminPublish" style="border-color:var(--gold);color:var(--gold)">🌍 Publish to ALL Players</button>
       <button class="mbtn" id="btnAdminExport">Export config.js</button>
       <button class="mbtn" id="btnAdminReset">Reset</button>
       <button class="mbtn" id="btnAdminClose">Close</button>
@@ -580,6 +583,8 @@ body{display:flex;align-items:center;justify-content:center;
 
 <!-- PeerJS for matchmaking-code multiplayer (P2P over free public broker) -->
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<!-- Supabase for cloud accounts, decks, stats and admin-published config -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <!-- External, data-driven configuration: rules, cards, locations -->
 <script src="config.js"></script>
 
@@ -2560,6 +2565,7 @@ const Stats={
     o.bestPower=Math.max(o.bestPower||0,detail.me||0);
     o.history=[{d:Date.now(),...detail},...(o.history||[])].slice(0,25);
     this.save(o);
+    Cloud.pushStats(); /* best-effort mirror for the global leaderboard */
   },
 };
 function showLeaderboard(){
@@ -2569,6 +2575,23 @@ function showLeaderboard(){
     `Losses <b style="color:var(--bad)">${o.lose||0}</b> · Draws ${o.draw||0}<br>`+
     `Streak ${o.streak||0} (best ${o.bestStreak||0}) · Best total power ${o.bestPower||0}`;
   const rows=$("lbRows");rows.innerHTML="";
+  /* global (cloud) rankings first, when available */
+  if(Cloud.sb){
+    const gh=document.createElement("div");gh.className="lbHead";
+    gh.textContent="🌍 GLOBAL — loading…";rows.appendChild(gh);
+    Cloud.fetchGlobalLeaderboard().then(list=>{
+      if(!list||!list.length){gh.textContent="🌍 GLOBAL — no players yet";return;}
+      gh.textContent="🌍 GLOBAL TOP "+list.length;
+      list.forEach((r,i)=>{
+        const d=document.createElement("div");d.className="lbRow";
+        const me=Cloud.profile&&r.u===Cloud.profile.display_name;
+        d.innerHTML=`<span>#${i+1}${me?" ★":""}</span>`+
+          `<span style="${me?"color:var(--gold)":""}">${esc(r.u)}</span>`+
+          `<span class="win">${r.w}W</span><span class="lose">${r.l}L</span>`+
+          `<span>${r.d}D</span><span>best ${r.best}</span>`;
+        gh.insertAdjacentElement("afterend",d);});
+    });
+  }
   /* local account rankings, best record first */
   {
     const h=document.createElement("div");h.className="lbHead";
@@ -2602,6 +2625,154 @@ function showLeaderboard(){
 }
 
 /* ============================================================================
+   CLOUD (Supabase) — online accounts, cloud decks/stats, global leaderboard,
+   and the admin-published universal config.
+   Everything here is best-effort: no network / no cloud config → the game
+   runs exactly as before on local storage. Security is server-side RLS;
+   only CFG.cloud.adminEmail's signed-in account can publish game config.
+   ========================================================================= */
+const Cloud={
+  sb:null, user:null, profile:null, needsName:false,
+  init(){
+    const c=CFG.cloud;
+    if(!c||!c.url||!c.anonKey||!window.supabase)return;
+    try{this.sb=window.supabase.createClient(c.url,c.anonKey);}catch(e){this.sb=null;return;}
+    this.fetchConfig();
+    this.sb.auth.onAuthStateChange((_ev,session)=>{this._setUser(session?session.user:null);});
+    this.sb.auth.getSession().then(({data})=>this._setUser(data&&data.session?data.session.user:null))
+      .catch(()=>{});
+  },
+  /* the admin-published universal config: rules, cards, teams, stages, music */
+  async fetchConfig(){
+    try{
+      const {data,error}=await this.sb.from("game_config")
+        .select("config").eq("id",1).single();
+      if(error||!data||!data.config)return;
+      applyPublishedConfig(data.config);
+    }catch(e){}
+  },
+  isAdmin(){return !!(this.user&&this.user.email===(CFG.cloud||{}).adminEmail);},
+  async _setUser(u){
+    const changed=(u&&u.id)!==(this.user&&this.user.id);
+    this.user=u||null;this.profile=null;this.needsName=false;
+    if(u){
+      try{
+        const {data}=await this.sb.from("profiles").select("*").eq("id",u.id).maybeSingle();
+        this.profile=data||null;
+        this.needsName=!data;
+        if(data)await this.pullDecks();
+      }catch(e){}
+    }
+    refreshUserBtn();
+    updateAdminVisibility();
+    if(changed&&!$("userOverlay").classList.contains("hidden"))renderAccounts();
+  },
+  async signUp(email,pass){
+    const {data,error}=await this.sb.auth.signUp({email,password:pass});
+    if(error)return error.message;
+    if(data&&!data.session)return "Check your email to confirm your account, then sign in.";
+    return null;
+  },
+  async signIn(email,pass){
+    const {error}=await this.sb.auth.signInWithPassword({email,password:pass});
+    return error?error.message:null;
+  },
+  async signOut(){try{await this.sb.auth.signOut();}catch(e){}},
+  async claimName(name){
+    name=(name||"").trim().slice(0,14);
+    if(name.length<2)return "Name must be 2-14 characters";
+    const {error}=await this.sb.from("profiles")
+      .insert({id:this.user.id,display_name:name});
+    if(error)return /duplicate|unique/i.test(error.message)?"That name is taken":error.message;
+    this.profile={id:this.user.id,display_name:name};this.needsName=false;
+    refreshUserBtn();
+    return null;
+  },
+  /* cloud decks → local cache under the cloud identity's storage key */
+  async pullDecks(){
+    if(!this.user)return;
+    try{
+      const {data,error}=await this.sb.from("decks")
+        .select("id,name,cards,is_active").order("updated_at");
+      if(error||!data)return;
+      const o={decks:data.map(d=>({cloudId:d.id,name:d.name,cards:d.cards})),
+        active:(data.find(d=>d.is_active)||{}).name||null};
+      Decks.save(o);
+    }catch(e){}
+  },
+  async pushDeck(deck){ /* deck: {cloudId?, name, cards} → returns cloudId */
+    if(!this.user||!this.profile)return null;
+    try{
+      if(deck.cloudId){
+        await this.sb.from("decks").update({name:deck.name,cards:deck.cards,updated_at:new Date().toISOString()})
+          .eq("id",deck.cloudId);
+        return deck.cloudId;
+      }
+      const {data,error}=await this.sb.from("decks")
+        .insert({user_id:this.user.id,name:deck.name,cards:deck.cards})
+        .select("id").single();
+      if(error){toast("Cloud deck save failed: "+error.message,2500);return null;}
+      return data.id;
+    }catch(e){return null;}
+  },
+  async deleteDeck(cloudId){
+    if(!this.user||!cloudId)return;
+    try{await this.sb.from("decks").delete().eq("id",cloudId);}catch(e){}
+  },
+  async setActiveDeck(cloudId){
+    if(!this.user)return;
+    try{
+      await this.sb.from("decks").update({is_active:false}).eq("user_id",this.user.id);
+      if(cloudId)await this.sb.from("decks").update({is_active:true}).eq("id",cloudId);
+    }catch(e){}
+  },
+  async pushStats(){
+    if(!this.user||!this.profile)return;
+    try{
+      const st=Stats.load();
+      await this.sb.from("stats").upsert({
+        user_id:this.user.id,
+        win:st.win||0,lose:st.lose||0,draw:st.draw||0,
+        streak:st.streak||0,best_streak:st.bestStreak||0,best_power:st.bestPower||0,
+        history:st.history||[],updated_at:new Date().toISOString()});
+    }catch(e){}
+  },
+  async fetchGlobalLeaderboard(limit=10){
+    try{
+      const {data,error}=await this.sb.from("stats")
+        .select("win,lose,draw,best_power,profiles(display_name)")
+        .order("win",{ascending:false}).limit(limit);
+      if(error||!data)return null;
+      return data.map(r=>({u:(r.profiles&&r.profiles.display_name)||"?",
+        w:r.win,l:r.lose,d:r.draw,best:r.best_power}));
+    }catch(e){return null;}
+  },
+  async publishConfig(){
+    if(!this.isAdmin())return "Sign in as the admin to publish";
+    const clone=JSON.parse(JSON.stringify(CFG));
+    delete clone.cloud; /* never publish keys into the config blob */
+    const {error}=await this.sb.from("game_config")
+      .upsert({id:1,config:clone,updated_at:new Date().toISOString(),updated_by:this.user.email});
+    return error?error.message:null;
+  },
+};
+/* apply the published config over the bundled one; the admin's own local
+   overrides re-apply on top so their in-progress edits keep previewing */
+function applyPublishedConfig(pub){
+  if(!pub||typeof pub!=="object")return;
+  if(pub.rules)Object.assign(CFG.rules,pub.rules);
+  ["cards","locations","teams","music","sprites","fxLibrary","superFinishers"]
+    .forEach(k=>{if(pub[k])CFG[k]=pub[k];});
+  Admin.applyStored();
+}
+function updateAdminVisibility(){
+  /* with cloud configured, the admin panel belongs to the admin account;
+     without cloud (pure local dev), it stays open to everyone */
+  const gated=!!(Cloud.sb);
+  $("btnAdmin").style.display=(!gated||Cloud.isAdmin())?"":"none";
+}
+
+/* ============================================================================
    USER ACCOUNTS — local profiles stored on this device. Each account gets
    its own decks (max 5), stats, and leaderboard row. The current account's
    name is shown to multiplayer opponents.
@@ -2624,7 +2795,9 @@ const Users={
     }
     return o;
   },
-  current(){const o=this.load()||this.init();return o.current||"Player";},
+  current(){
+    if(Cloud.profile)return Cloud.profile.display_name; /* signed-in cloud identity */
+    const o=this.load()||this.init();return o.current||"Player";},
   setCurrent(n){const o=this.load();o.current=n;this.save(o);},
   create(name){
     const o=this.load();name=(name||"").trim().slice(0,14);
@@ -2647,6 +2820,7 @@ function openAccounts(){
   closeOverlay("menuOverlay",()=>{showOverlay("userOverlay");renderAccounts();});
 }
 function renderAccounts(){
+  renderCloudAuth();
   const o=Users.load();
   const list=$("userList");list.innerHTML="";
   o.list.forEach(u=>{
@@ -2670,6 +2844,57 @@ $("btnUserDelete").onclick=()=>{audio.click();
   Users.remove(o.current);refreshUserBtn();renderAccounts();toast("Account deleted");};
 $("btnUserClose").onclick=()=>{audio.click();
   closeOverlay("userOverlay",()=>showOverlay("menuOverlay"));};
+
+/* ── cloud sign-in / sign-up UI inside the accounts overlay ── */
+function renderCloudAuth(){
+  const box=$("cloudAuth");box.innerHTML="";
+  const head=document.createElement("div");head.className="lbHead";head.style.textAlign="center";
+  if(!Cloud.sb){head.textContent="☁ ONLINE — unavailable (offline or not configured)";
+    box.appendChild(head);return;}
+  head.textContent="☁ ONLINE ACCOUNT";box.appendChild(head);
+  const inp=(ph,type="text")=>{const i=document.createElement("input");
+    i.placeholder=ph;i.type=type;i.autocomplete="off";
+    i.style.cssText="padding:10px;border-radius:10px;border:1px solid #ffffff2a;background:#ffffff0d;color:var(--ink);font-size:13px;outline:none;width:100%;";
+    return i;};
+  const row=()=>{const d=document.createElement("div");
+    d.style.cssText="display:flex;gap:6px;";return d;};
+  const btn=(label,primary)=>{const b=document.createElement("button");
+    b.className="mbtn"+(primary?" primary":"");b.style.cssText="width:auto;flex:1;padding:10px;font-size:13px;";
+    b.textContent=label;return b;};
+  if(Cloud.user&&Cloud.needsName){
+    const info=document.createElement("div");info.className="subtext";
+    info.textContent="Signed in! Pick your player name (shown on the global leaderboard):";
+    box.appendChild(info);
+    const r=row();const nm=inp("Player name (2-14 chars)");
+    const go=btn("Claim",true);
+    go.onclick=async()=>{audio.click();const err=await Cloud.claimName(nm.value);
+      if(err)toast(err,2500);else{audio.play("buff");toast("Welcome, "+Cloud.profile.display_name+"!");renderAccounts();}};
+    r.append(nm,go);box.appendChild(r);
+  }else if(Cloud.user){
+    const info=document.createElement("div");info.className="subtext";
+    info.innerHTML=`Signed in as <b style="color:var(--gold)">${esc(Cloud.profile?Cloud.profile.display_name:"…")}</b> (${esc(Cloud.user.email)})`+
+      (Cloud.isAdmin()?' · <b style="color:var(--gold)">ADMIN</b>':"");
+    box.appendChild(info);
+    const out=btn("Sign Out");
+    out.onclick=async()=>{audio.click();await Cloud.signOut();renderAccounts();};
+    box.appendChild(out);
+  }else{
+    const em=inp("Email","email"),pw=inp("Password","password");
+    box.append(em,pw);
+    const r=row();
+    const si=btn("Sign In",true),su=btn("Create Account");
+    si.onclick=async()=>{audio.click();const err=await Cloud.signIn(em.value.trim(),pw.value);
+      if(err)toast(err,2600);else toast("Signed in!");};
+    su.onclick=async()=>{audio.click();
+      if((pw.value||"").length<6){toast("Password: 6+ characters");return;}
+      const err=await Cloud.signUp(em.value.trim(),pw.value);
+      if(err)toast(err,3200);else toast("Account created!");};
+    r.append(si,su);box.appendChild(r);
+    const note=document.createElement("div");note.className="subtext";
+    note.textContent="Online accounts sync your decks and stats across devices and rank you on the global leaderboard.";
+    box.appendChild(note);
+  }
+}
 refreshUserBtn();
 
 /* ============================================================================
@@ -2757,7 +2982,18 @@ function saveDeck(){
   const o=Decks.load();
   const i=o.decks.findIndex(d=>d.name===deckEdit.name);
   if(i<0&&o.decks.length>=Decks.MAX){toast("Max "+Decks.MAX+" decks per account");return;}
-  if(i>=0)o.decks[i]={...deckEdit};else o.decks.push({...deckEdit,cards:[...deckEdit.cards]});
+  const cloudId=i>=0?o.decks[i].cloudId:undefined;
+  if(i>=0)o.decks[i]={...deckEdit,cloudId};else o.decks.push({...deckEdit,cards:[...deckEdit.cards]});
+  /* cloud sync (async, best-effort) */
+  if(Cloud.user&&Cloud.profile){
+    const idx=i>=0?i:o.decks.length-1;
+    Cloud.pushDeck({cloudId,name:deckEdit.name,cards:[...deckEdit.cards]}).then(id=>{
+      if(!id)return;
+      const oo=Decks.load();
+      const dd=oo.decks.find(x=>x.name===deckEdit.name);
+      if(dd&&!dd.cloudId){dd.cloudId=id;Decks.save(oo);}
+    });
+  }
   if(!o.active)o.active=deckEdit.name;
   Decks.save(o);audio.play("buff");
   toast(deckEdit.cards.length===R.deckSize?"Deck saved!":`Saved (${deckEdit.cards.length}/${R.deckSize} — will be padded in play)`);
@@ -2765,8 +3001,12 @@ function saveDeck(){
 }
 $("btnDeckSave").onclick=saveDeck;
 $("btnDeckActive").onclick=()=>{saveDeck();const o=Decks.load();o.active=deckEdit.name;Decks.save(o);
+  const d=o.decks.find(x=>x.name===deckEdit.name);
+  if(Cloud.user&&d&&d.cloudId)Cloud.setActiveDeck(d.cloudId);
   toast("★ "+deckEdit.name+" is now your deck");renderDeckBuilder();};
 $("btnDeckDelete").onclick=()=>{audio.click();const o=Decks.load();
+  const gone=o.decks.find(d=>d.name===deckEdit.name);
+  if(Cloud.user&&gone&&gone.cloudId)Cloud.deleteDeck(gone.cloudId);
   o.decks=o.decks.filter(d=>d.name!==deckEdit.name);
   if(o.active===deckEdit.name)o.active=o.decks[0]?o.decks[0].name:null;
   Decks.save(o);deckEdit={name:"My Deck",cards:[]};renderDeckBuilder();toast("Deck deleted");};
@@ -2808,6 +3048,11 @@ const Admin={
   reset(){try{localStorage.removeItem(this.KEY);}catch(e){}},
 };
 function openAdmin(){
+  if(Cloud.sb&&!Cloud.isAdmin()){
+    toast("Admin is restricted — sign in as the admin account",2600);
+    openAccounts();
+    return;
+  }
   frame.classList.add("wide"); /* desktop: give the editor real estate */
   if(location.hash!=="#admin"){try{history.pushState(null,"","#admin");}catch(e){location.hash="admin";}}
   closeOverlay("menuOverlay",()=>{showOverlay("adminOverlay");renderAdmin();});
@@ -3050,6 +3295,14 @@ function exportConfig(){
 }
 $("btnAdminApply").onclick=applyAdmin;
 $("btnAdminExport").onclick=()=>{audio.click();exportConfig();};
+$("btnAdminPublish").onclick=async()=>{audio.click();
+  if(!Cloud.sb){toast("Cloud not configured");return;}
+  collectAdmin();Admin.store();
+  toast("Publishing…");
+  const err=await Cloud.publishConfig();
+  if(err)toast("Publish failed: "+err,3200);
+  else{audio.play("superCharge");bannerEpic("PUBLISHED TO ALL PLAYERS!");}
+};
 $("btnAdminReset").onclick=()=>{audio.click();Admin.reset();toast("Overrides cleared — reload the page");};
 $("btnAdminClose").onclick=()=>{audio.click();closeAdmin();};
 Admin.applyStored(); /* boot: re-apply saved edits */
@@ -3091,13 +3344,15 @@ $("btnMute").onclick=()=>{audio.unlock();$("btnMute").textContent=audio.toggleMu
 $("joinCode").addEventListener("keydown",(e)=>{if(e.key==="Enter")$("btnJoin").click();});
 window.addEventListener("beforeunload",()=>net.close());
 
+Cloud.init(); /* cloud config + session (no-op when offline/unconfigured) */
+
 /* deep link: index.html#admin opens straight into the admin panel */
 if(location.hash==="#admin")setTimeout(()=>openAdmin(),80);
 
 /* Exposed for debugging & automated tests — safe to remove */
 window.__GAAM={G,startMatch,endTurnPressed,stageCard,canStage,locationsWon,cardPower,locTotal,
   audio,fx,net,inspectCard,showLeaderboard,Stats,retractStaged,affect,locPlacementFx,AUDIO_RECIPES,
-  renderAll,Decks,Admin,Users,openDecks,openAdmin,renderDeckBuilder,banner,bannerEpic,showOverlay,closeOverlay,
+  renderAll,Decks,Admin,Users,Cloud,applyPublishedConfig,openDecks,openAdmin,renderDeckBuilder,banner,bannerEpic,showOverlay,closeOverlay,
   teamOf,eligibleSupers,stageSuper,cancelSuper,resolveSuper,destroyCard,openGrave,
   updateRematchBtn,hostRematchInit,handleNet};
 </script>

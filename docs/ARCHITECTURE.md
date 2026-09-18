@@ -49,6 +49,14 @@ Messages over one PeerJS reliable channel:
 
 Hands and decks never leave the owning client; only plays travel. Both clients replay the same reveal deterministically because: (1) the shared `mulberry32(seed)` is consumed **only** for shared decisions — location pick at start, super-attack targets — never for private draws/shuffles (those use `Math.random`); (2) reveal order is canonical — priority side first (more locations won; host on ties), then per-side plays by `order` with supers last (stable sort); (3) all power math is pure. **Rule: inside anything that runs during reveal, use `ctx.rng()`/`G.rng()`, never `Math.random`.** `pendingPlays` is keyed by turn so an early-finishing opponent's next-turn message is never lost.
 
+## Cloud backend (Supabase)
+
+Project `gaam-card-battle` (`rzaajtnvdatuvlcsefqa.supabase.co`), configured in `config.js → cloud` (the anonKey is public; RLS is the security boundary). The `Cloud` module in index.html is fully best-effort — any failure or missing network leaves the game on its local behavior.
+
+**Tables (all RLS-enabled):** `game_config` (single row id=1; world-readable, writable only when `auth.jwt()->>'email'` = adminEmail via `is_gaam_admin()`), `profiles` (unique display_name 2–14, world-readable, owner-writable), `decks` (owner-only, server trigger caps 5/user), `stats` (world-readable for the leaderboard, owner-writable; FK to profiles enables the PostgREST join).
+
+**Flows:** boot → `Cloud.init()` → `fetchConfig()` applies the published config over the bundled one (`applyPublishedConfig`; admin's local overrides re-apply on top as preview). Sign-in (email+password) → profile load (or name-claim prompt) → `Users.current()` returns the cloud display name → decks pulled into the local cache (entries carry `cloudId`); saves/deletes/active push back. `Stats.record` mirrors to the cloud. Leaderboard shows a 🌍 GLOBAL section. Admin: panel hidden/blocked for non-admin accounts when cloud is configured (open to all in pure-local dev); "Publish to ALL Players" upserts `game_config` (RLS rejects everyone else — verified). Migrations live in Supabase (`gaam_initial_schema`, `stats_profile_fk`).
+
 ## localStorage schema
 
 | Key | Contents |

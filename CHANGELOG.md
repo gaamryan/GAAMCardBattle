@@ -4,6 +4,8 @@ All notable changes to GAAM Card Battle. Convention: add an entry under **Unrele
 
 ## Unreleased
 
+- **Cloud backend (Supabase)** — Backend Phase 1: admin-published universal config (rules, cards, teams, stages, music) fetched by every client at boot; online accounts (email+password) with claimed player names; cloud-synced decks (server-enforced 5-deck cap) and stats; global leaderboard section; admin panel gated to ryan@gaamgood.com with a "🌍 Publish to ALL Players" button (server-enforced via RLS). Fully offline-tolerant: no network → prior local behavior. Project: supabase `gaam-card-battle` (rzaajtnvdatuvlcsefqa).
+
 - Deployed to production: gaam-card-battle.vercel.app (Vercel auto-deploys from GitHub `main`). Roadmap step 1 complete; playtesting now possible over public HTTPS.
 
 - Project documentation set: `docs/ARCHITECTURE.md` (engine internals reference), this changelog, portable `tools/sim_match.js` test harness.

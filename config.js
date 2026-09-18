@@ -371,6 +371,18 @@ window.GAAM_CONFIG = {
                      beat: 1.7 },
   },
 
+  /* ── CLOUD (Supabase) ───────────────────────────────────────────────────
+     Online accounts, cloud decks/stats, global leaderboard, and the
+     admin-published universal config. The anonKey is a PUBLIC client key —
+     safe to commit; all security is enforced server-side by RLS policies
+     (admin writes are restricted to adminEmail's signed-in account).
+     Delete/blank this section to run fully local/offline.               */
+  cloud: {
+    url: "https://rzaajtnvdatuvlcsefqa.supabase.co",
+    anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ6YWFqdG52ZGF0dXZsY3NlZnFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2OTE2NzksImV4cCI6MjEwNTI2NzY3OX0._fWcFrmFVp_8NX0Aoj3NKH4JPSkQaiZmWKvdKmu8BHE",
+    adminEmail: "ryan@gaamgood.com",
+  },
+
   /* ── MULTIPLAYER ───────────────────────────────────────────────────────── */
   net: {
     codePrefix: "GAAM-",  // matchmaking codes look like GAAM-X7K2
