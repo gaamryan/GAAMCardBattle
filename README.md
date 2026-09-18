@@ -125,7 +125,7 @@ The 🏳 flag in the top bar (visible during matches) opens a confirm dialog —
 
 👤 on the menu. Two tiers:
 
-- **Online accounts (Supabase)** — sign up with email + password, claim a unique player name, and your decks (up to 5, server-enforced) and stats sync across devices and rank on the 🌍 global leaderboard. The published game config (rules, cards, teams, stages, music) is fetched from the cloud at boot, so the admin's edits are universal for every player. Fully offline-tolerant — no connection means the game runs on local data exactly as before.
+- **Online accounts (Supabase)** — sign up with email + password, claim a unique player name, and your decks (up to 5, server-enforced) and stats sync across devices and rank on the 🌍 global leaderboard — ordered by your ⭐ Elo rating (starts at 1000; multiplayer wins and losses move it) with cube totals alongside. The published game config (rules, cards, teams, stages, music) is fetched from the cloud at boot, so the admin's edits are universal for every player. Fully offline-tolerant — no connection means the game runs on local data exactly as before.
 - **Local profiles** — device-only accounts, still available below the sign-in (and the only tier when offline).
 
 The **admin** is the signed-in `ryan@gaamgood.com` account: only it sees the ⚙️ Admin panel when cloud is active, and its "🌍 Publish to ALL Players" button pushes the current config to everyone — enforced server-side by row-level security, not just UI. Everyone builds decks from whatever card pool the admin has published.

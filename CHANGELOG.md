@@ -4,6 +4,8 @@ All notable changes to GAAM Card Battle. Convention: add an entry under **Unrele
 
 ## Unreleased
 
+- **Backend Phase 2** (roadmap step 5, partial): ⭐ **Elo ratings** (start 1000, K=32, multiplayer matches only — each client rates itself against the opponent's published rating) and 🎲 cube totals now live in the cloud `stats` table; the 🌍 global leaderboard ranks by rating and shows rating/W/L/cubes. Every finished match also files a **raw match report** (mode, outcome, totals, cube stake, and the shared MP seed) into a new RLS-protected `match_reports` table — the seed is what makes server-side re-sim **verification possible in Phase 3**. Remaining for Phase 3 (see docs/ONLINE_BACKEND.md): extract `engine.js`, verify reports by re-simulation, seasons, hosted matchmaking + TURN.
+
 - **Retention loop** (roadmap step 4 complete):
   - **Card unlocks** — new accounts start with the 16 cheapest cards (`rules.unlockStartCount`); every WIN unlocks one random locked card with a "NEW CARD UNLOCKED" celebration; locked cards show greyed with 🔒 in the deck builder and are excluded from your deck padding. `rules.unlocksEnabled: 0` switches the system off.
   - **Snap/Retreat cubes** — every match is played for 🎲 cubes (stake starts at 1). The purple **SNAP** button doubles the stake once per player per match (both snap = ×4; the AI snaps back when it's ahead from turn 4, and SNAP syncs over multiplayer). Win the match, win the stake; lose or concede (= retreat), lose it. Cube totals are tracked in stats and shown on the leaderboard. `rules.cubesEnabled: 0` turns it off.

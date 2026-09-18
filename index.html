@@ -1749,7 +1749,8 @@ function startMatch(mode,{seed,locIds}={}){
   G.mode=mode;G.isHost=(mode!=="guest");
   G.phase="staging";G.turn=0;G.playOrder=0;
   G.meReady=G.oppReady=false;G.pendingPlays={};
-  G.rng=mulberry32(seed??Math.floor(Math.random()*1e9));
+  G.seed=seed??Math.floor(Math.random()*1e9);
+  G.rng=mulberry32(G.seed);
 
   /* pick locations: host/AI-mode picks randomly (seeded), guest receives ids */
   let pool;
@@ -2735,6 +2736,8 @@ const Stats={
     o.history=[{d:Date.now(),...detail},...(o.history||[])].slice(0,25);
     this.save(o);
     Cloud.pushStats(); /* best-effort mirror for the global leaderboard */
+    Cloud.updateRating(outcome,detail); /* MP only; re-pushes with new Elo */
+    Cloud.reportMatch(outcome,detail);  /* raw report for Phase 3 verification */
   },
 };
 function showLeaderboard(){
@@ -2742,7 +2745,8 @@ function showLeaderboard(){
   $("lbSummary").innerHTML=`<b style="color:var(--gold)">${Users.current()}</b><br>`+
     `Wins <b style="color:var(--good)">${o.win||0}</b> · `+
     `Losses <b style="color:var(--bad)">${o.lose||0}</b> · Draws ${o.draw||0}<br>`+
-    `Streak ${o.streak||0} (best ${o.bestStreak||0}) · Best total power ${o.bestPower||0} · 🎲 Cubes <b style="color:var(--gold)">${o.cubes||0}</b>`;
+    `Streak ${o.streak||0} (best ${o.bestStreak||0}) · Best total power ${o.bestPower||0}`+
+    `<br>🎲 Cubes <b style="color:var(--gold)">${o.cubes||0}</b> · Rating <b style="color:var(--accent)">${o.rating||1000}</b>`;
   const rows=$("lbRows");rows.innerHTML="";
   /* global (cloud) rankings first, when available */
   if(Cloud.sb){
@@ -2756,8 +2760,9 @@ function showLeaderboard(){
         const me=Cloud.profile&&r.u===Cloud.profile.display_name;
         d.innerHTML=`<span>#${i+1}${me?" ★":""}</span>`+
           `<span style="${me?"color:var(--gold)":""}">${esc(r.u)}</span>`+
+          `<span style="color:var(--accent)">⭐${r.rating}</span>`+
           `<span class="win">${r.w}W</span><span class="lose">${r.l}L</span>`+
-          `<span>${r.d}D</span><span>best ${r.best}</span>`;
+          `<span>🎲${r.cubes}</span>`;
         gh.insertAdjacentElement("afterend",d);});
     });
   }
@@ -2903,17 +2908,54 @@ const Cloud={
         user_id:this.user.id,
         win:st.win||0,lose:st.lose||0,draw:st.draw||0,
         streak:st.streak||0,best_streak:st.bestStreak||0,best_power:st.bestPower||0,
+        rating:st.rating||1000,cubes:st.cubes||0,
         history:st.history||[],updated_at:new Date().toISOString()});
+    }catch(e){}
+  },
+  /* Elo rating (K=32), multiplayer matches only. Phase 2 is trust-based:
+     each client rates itself against the opponent's published rating; the
+     raw match report (incl. seed) is stored for Phase 3 re-sim verification. */
+  async updateRating(outcome,detail){
+    if(!this.sb||!this.user||!this.profile||detail.mode==="ai")return;
+    try{
+      let oppR=1000;
+      if(G.remoteName){
+        const {data:prof}=await this.sb.from("profiles")
+          .select("id").eq("display_name",G.remoteName).maybeSingle();
+        if(prof){
+          const {data:st}=await this.sb.from("stats")
+            .select("rating").eq("user_id",prof.id).maybeSingle();
+          if(st&&st.rating)oppR=st.rating;
+        }
+      }
+      const o=Stats.load();
+      const mine=o.rating||1000;
+      const score=outcome==="win"?1:outcome==="draw"?0.5:0;
+      const exp=1/(1+Math.pow(10,(oppR-mine)/400));
+      o.rating=Math.round(mine+32*(score-exp));
+      Stats.save(o);
+      await this.pushStats();
+    }catch(e){}
+  },
+  async reportMatch(outcome,detail){
+    if(!this.sb||!this.user)return;
+    try{
+      await this.sb.from("match_reports").insert({
+        reporter:this.user.id,mode:detail.mode||"ai",outcome,
+        opponent_name:detail.mode==="ai"?"AI":(G.remoteName||null),
+        me_total:detail.me??null,op_total:detail.op??null,locs:detail.locs||null,
+        cubes:detail.cubes||0,seed:G.seed??null});
     }catch(e){}
   },
   async fetchGlobalLeaderboard(limit=10){
     try{
       const {data,error}=await this.sb.from("stats")
-        .select("win,lose,draw,best_power,profiles(display_name)")
-        .order("win",{ascending:false}).limit(limit);
+        .select("win,lose,draw,best_power,rating,cubes,profiles(display_name)")
+        .order("rating",{ascending:false}).limit(limit);
       if(error||!data)return null;
       return data.map(r=>({u:(r.profiles&&r.profiles.display_name)||"?",
-        w:r.win,l:r.lose,d:r.draw,best:r.best_power}));
+        w:r.win,l:r.lose,d:r.draw,best:r.best_power,
+        rating:r.rating??1000,cubes:r.cubes||0}));
     }catch(e){return null;}
   },
   async publishConfig(){
