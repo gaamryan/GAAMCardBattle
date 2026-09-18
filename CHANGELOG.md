@@ -4,6 +4,8 @@ All notable changes to GAAM Card Battle. Convention: add an entry under **Unrele
 
 ## Unreleased
 
+- **Explicit voice lines toggle** — voice-pack keys can ship a `<key>_explicit.mp3` variant; when Admin → Music → "explicit lines" is On (the default, admin-publishable), the spicy take plays instead. The explicit SUPER ATTACK take is now active; keys without an explicit variant are unaffected.
+
 - **Recorded announcer pack installed** — 34 ElevenLabs takes transcribed, identified, and renamed into `assets/voice/` (rounds 1–7, battle start, final round, hurry/time's up, supers, revive ×2, snap, combo + incredible, all results, new card, rematch, interjections). Combo call-outs now voice ("COMBO!" at 2–3 chained hits, "INCREDIBLE!" at 4+); spare takes kept as inactive `_alt` files; two explicit takes deliberately left inactive. All 26 active lines verified loading and routing.
 
 - **⭐ Featured stage of the day** — one stage per day (date-picked, same for everyone) is guaranteed into every match's deal with its **effect doubled**, starred on the plate and announced on the menu. Guests inherit the host's pick via netCfg. `rules.featuredEnabled: 0` disables.

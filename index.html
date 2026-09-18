@@ -1322,21 +1322,23 @@ const Voice={
     [/\bVS\b/i,()=>"battle_start"],
   ],
   _pack:{},
-  preloadPack(){ /* probe once at boot; missing files simply stay synth */
-    this.PACK_KEYS.forEach(k=>{
-      try{
-        const a=new Audio(this.PACK_DIR+k+".mp3");
-        a.preload="auto";
-        a.addEventListener("canplaythrough",()=>{this._pack[k]=a;},{once:true});
-        a.addEventListener("error",()=>{delete this._pack[k];},{once:true});
-      }catch(e){}
-    });
+  preloadPack(){ /* probe once at boot; missing files simply stay synth.
+     Each key may also ship a spicier <key>_explicit.mp3 variant, used when
+     the admin's "explicit lines" toggle is on. */
+    const probe=k=>{try{
+      const a=new Audio(this.PACK_DIR+k+".mp3");
+      a.preload="auto";
+      a.addEventListener("canplaythrough",()=>{this._pack[k]=a;},{once:true});
+      a.addEventListener("error",()=>{delete this._pack[k];},{once:true});
+    }catch(e){}};
+    this.PACK_KEYS.forEach(k=>{probe(k);probe(k+"_explicit");});
   },
   playPack(txt){
     for(const [rx,fn] of this.PACK_MAP){
       const m=String(txt).match(rx);
       if(m){
-        const a=this._pack[fn(m)];
+        const key=fn(m);
+        const a=(((CFG.voice||{}).explicit??1)&&this._pack[key+"_explicit"])||this._pack[key];
         if(!a)return false;
         try{a.currentTime=0;a.volume=1;
           const p=a.play();if(p&&p.catch)p.catch(()=>{});
@@ -3845,6 +3847,7 @@ const Admin={
     (ov.locations||[]).forEach(o=>{const l=CFG.locations.find(x=>x.id===o.id);if(l)Object.assign(l,o);});
     if(ov.voice){CFG.voice=CFG.voice||{};
       if(ov.voice.enabled!==undefined)CFG.voice.enabled=ov.voice.enabled;
+      if(ov.voice.explicit!==undefined)CFG.voice.explicit=ov.voice.explicit;
       if(ov.voice.style)CFG.voice.style=ov.voice.style;}
     Object.entries(ov.music||{}).forEach(([k,m])=>{
       CFG.music=CFG.music||{};
@@ -3860,7 +3863,7 @@ const Admin={
         vfx:c.vfx,interactFx:c.interactFx,sfx:c.sfx,abilityText:c.abilityText})),
       locations:CFG.locations.map(l=>({id:l.id,name:l.name,imageURL:l.imageURL,
         effectId:l.effectId,fxKey:l.fxKey,effectText:l.effectText})),
-      voice:{enabled:(CFG.voice||{}).enabled??1,style:(CFG.voice||{}).style||"arcade"},
+      voice:{enabled:(CFG.voice||{}).enabled??1,style:(CFG.voice||{}).style||"arcade",explicit:(CFG.voice||{}).explicit??1},
       music:Object.assign(
         Object.fromEntries(Object.entries(CFG.music||{})
           .filter(([k,v])=>v&&typeof v==="object"&&!Array.isArray(v)&&k!=="__random")
@@ -4006,6 +4009,11 @@ function renderAdminMusic(b){
     <option value="1"${(V.enabled??1)?" selected":""}>On</option>
     <option value="0"${!(V.enabled??1)?" selected":""}>Off</option></select>`;
   b.appendChild(vrow);
+  const xrow=document.createElement("div");xrow.className="aRow";
+  xrow.innerHTML=`<label>explicit lines</label><select data-voiceexplicit>
+    <option value="1"${(V.explicit??1)?" selected":""}>On (spicy takes where available)</option>
+    <option value="0"${!(V.explicit??1)?" selected":""}>Off (family-friendly only)</option></select>`;
+  b.appendChild(xrow);
   const srow=document.createElement("div");srow.className="aRow";
   srow.innerHTML=`<label>voice style</label><select data-voicestyle>`+
     Object.entries(V.styles||{}).map(([k,v])=>
@@ -4132,6 +4140,8 @@ function collectAdmin(){
   if(von){CFG.voice=CFG.voice||{};CFG.voice.enabled=+von.value;}
   const vst=$("adminBody").querySelector("[data-voicestyle]");
   if(vst&&vst.value){CFG.voice=CFG.voice||{};CFG.voice.style=vst.value;}
+  const vex=$("adminBody").querySelector("[data-voiceexplicit]");
+  if(vex){CFG.voice=CFG.voice||{};CFG.voice.explicit=+vex.value;}
   const mm=$("adminBody").querySelector("[data-musicmode]");
   if(mm){CFG.music=CFG.music||{};CFG.music.mode=mm.value;}
   const poolInputs=$("adminBody").querySelectorAll("[data-pool]");

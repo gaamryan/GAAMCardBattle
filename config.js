@@ -444,6 +444,7 @@ window.GAAM_CONFIG = {
      toggle in the top bar. */
   voice: {
     enabled: 1,
+    explicit: 1,      /* use <key>_explicit.mp3 pack takes where they exist (Admin → Music toggle) */
     style: "maxhype", /* which of the styles below to use */
     styles: {
       maxhype:   { label: "Maximum Hype",   pitch: 1.0,  rate: 1.22, voiceHint: "google|natural|neural|online|guy|alex|aaron", excite: 1 },
