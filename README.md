@@ -177,7 +177,7 @@ Each staging turn has a **turn timer** (default 45s, shown in the turn pill; it 
 
 ## Stages
 
-12 stages ship in the pool — the original five plus seven video-game homages (Pixel Meadow, Speedway Loop, Haunted Manor, Rooftop Dojo, Block Fortress, Crystal Caverns, Star Cruiser) — and every match deals 3 at random. Each stage has its own background, weather, ambient FX, effect, and synth theme (per-stage MP3s play in Per-stage music mode when you drop matching files into `assets/music/`). Add your own in `config.js → locations` or rename/reskin them in Admin → Stages.
+14 stages ship in the pool — the original five, seven video-game homages (Pixel Meadow, Speedway Loop, Haunted Manor, Rooftop Dojo, Block Fortress, Crystal Caverns, Star Cruiser), and two wild ones: **Underdog Alley** (the losing side gets +2 per card) and **Chaos Rift** (every reveal gets −2..+3 at random). Every match deals 3 at random, and one **⭐ featured stage per day** (same for all players) is always in the deal with its effect doubled. Each stage has its own background, weather, ambient FX, effect, and synth theme (per-stage MP3s play in Per-stage music mode when you drop matching files into `assets/music/`). Add your own in `config.js → locations` or rename/reskin them in Admin → Stages.
 
 ## Announcer & How to Play
 

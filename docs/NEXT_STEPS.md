@@ -8,4 +8,11 @@ Prioritized plan (details in SHIP_PLAN.md / ONLINE_BACKEND.md / BUG_HUNT.md):
 4. ~~**Retention loop**~~ ✅ DONE (2026-09-17): card unlocks (16 starters, +1 random per win, `rules.unlocksEnabled`) and Snap/Retreat cubes (stake ×2 per snap, AI + MP aware, tracked in stats/leaderboard, `rules.cubesEnabled`). Unlocks now cloud-sync with the account (2026-09-18).
 5. ~~**Backend Phase 1**~~ ✅ DONE (2026-09-17): Supabase sign-ins, admin-published universal config, cloud decks/stats, global leaderboard. Phase 2 ✅ DONE (2026-09-18): Elo ratings (K=32, MP-only) + cube totals in cloud stats, rating-ranked global leaderboard, raw `match_reports` (incl. MP seed) filed per match. Remaining Phase 3: extract `engine.js`, server-side re-sim verification of reports, seasons, hosted matchmaking + TURN (docs/ONLINE_BACKEND.md). ~~One-time manual steps~~ resolved 2026-09-18: signups auto-confirm via DB trigger (no dashboard change needed), and ryan@gaamgood.com is created + confirmed — sign in with it in-game to use the admin panel.
 
-Meta: extract the pure engine into `engine.js` before steps 3–5 (also required for server-side match verification).
+6. **Approved backlog (2026-09-18, in priority order):**
+   - ~~QoL trio (undo / next-energy / rookie hints)~~ ✅ · ~~Daily challenges~~ ✅ · ~~MP emotes~~ ✅ · ~~First-match tutorial~~ ✅ · ~~Featured stage of the day~~ ✅ · ~~Wild stages (Underdog Alley, Chaos Rift)~~ ✅
+   - **Card evolution** — N wins with a card in deck → foil frame + small power bump (needs balance-sim pass).
+   - **Final-turn replay** — "watch that again" on the results screen (deterministic reveals make this a re-run of the last reveal sequence).
+   - **Seasons & card backs** — monthly rating reset with cosmetic rewards (card backs as the unlockable cosmetic layer).
+   - **Spectate/share links** — replay any match from seed + plays via URL (pairs with match_reports).
+
+Meta: extract the pure engine into `engine.js` before server-side match verification / spectate links (Backend Phase 3).

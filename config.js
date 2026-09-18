@@ -53,6 +53,7 @@ window.GAAM_CONFIG = {
     hintGamesMax: 10,       // hints turn off automatically after this many games
     dailiesEnabled: 1,      // 🎯 three daily challenges with cube/unlock rewards
     tutorialEnabled: 1,     // guided callouts during a new player's first AI match
+    featuredEnabled: 1,     // ⭐ daily featured stage: always dealt, effect doubled
     revealStaggerMs: 900,   // pause between each card reveal
     interactStaggerMs: 130, // pause between multi-target ability hits
     superTeamSize: 2,       // team members needed at one location to unlock a Super
@@ -360,6 +361,11 @@ window.GAAM_CONFIG = {
       effectId: "buffAll",       fxKey: "ice",      ambient: "aura",   weather: "snow",   effectText: "Cards here have +2 Power." },
     { id: "star_cruiser",  name: "Star Cruiser",  imageURL: "assets/locations/star_cruiser.png",
       effectId: "crowdedBonus",  fxKey: "zap",      ambient: "electric",weather: "stars", effectText: "+1 Power here per card you have here. Squadron up." },
+    /* ── wild stages ── */
+    { id: "underdog_alley",name: "Underdog Alley",imageURL: "assets/locations/underdog_alley.png",
+      effectId: "underdog",      fxKey: "buff",     ambient: "flash",  weather: "sparks", effectText: "Comeback ring: whichever side is LOSING here gets +2 Power per card." },
+    { id: "chaos_rift",    name: "Chaos Rift",    imageURL: "assets/locations/chaos_rift.png",
+      effectId: "chaosBless",    fxKey: "dark",     ambient: "dark",   weather: "neon",   effectText: "Chaos: every card revealed here gets −2 to +3 Power, at random." },
   ],
 
   /* ── MUSIC ─────────────────────────────────────────────────────────────

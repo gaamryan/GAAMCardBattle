@@ -516,6 +516,7 @@ body{display:flex;align-items:center;justify-content:center;
     <div class="menuFloatCard" style="left:16%;bottom:14%;--mcDur:27s;--mcRot:6deg;--mcDx:40px;--mcDy:-38px;width:60px"></div>
     <div class="menuFloatCard" style="right:14%;bottom:24%;--mcDur:16s;--mcRot:-14deg;--mcDx:-24px;--mcDy:-52px;width:44px"></div>
     <div id="logo">GAAM<small>CARD BATTLE</small></div>
+    <div id="featuredLine" class="subtext" style="margin:-4px 0 6px;color:var(--gold);"></div>
     <button class="mbtn" id="btnUser">👤 &nbsp;<span id="userBtnName">Player</span></button>
     <button class="mbtn primary" id="btnVsAI">⚔️ &nbsp;Play vs AI</button>
     <button class="mbtn" id="btnHost">📡 &nbsp;Host Match (get a code)</button>
@@ -1514,11 +1515,20 @@ const LOCATION_EFFECTS = {
   crowdedBonus: {perCard:(c,li,side,st)=>1}, /* +1 per card you have = +1 each */
   masterBonus:  {perCard:(c)=>c.def.cost>=5?2:0},          /* Rooftop Dojo */
   loneBuilder:  {perCard:(c,li,side,st)=>st.locs[li].cards[side].length===1?2:0}, /* Block Fortress */
+  underdog:     {perCard:(c,li,side,st)=>{ /* Underdog Alley: +2 while losing here.
+    Raw sums (power+permBuff), NOT cardPower — or this recurses. */
+    const raw=cs=>cs.reduce((t,x)=>t+x.def.power+x.permBuff,0);
+    const L=st.locs[li];
+    return raw(L.cards[side])<raw(L.cards[side==="me"?"op":"me"])?2:0;}},
+  chaosBless:   {onCardRevealed(ctx){ /* Chaos Rift: −2..+3, shared rng (MP-safe) */
+    const delta=Math.floor(ctx.rng()*6)-2;
+    if(delta!==0)affect(ctx,ctx.card,delta,140);
+  }},
   forgeFirst:   {onCardRevealed(ctx){
     const L=ctx.state.locs[ctx.locIdx];
     if(!L.forgeUsed) L.forgeUsed={};
     if(!L.forgeUsed[ctx.side]){L.forgeUsed[ctx.side]=true;
-      ctx.card.permBuff+=3;
+      ctx.card.permBuff+=isFeatured(ctx.locIdx)?6:3;
       fx.effect(L.def.fxKey||"fire",ctx.card.el);
       fx.floatText(ctx.card.el,"+3","#ffd257");}
   }},
@@ -1586,7 +1596,7 @@ function cardPower(card,locIdx,side){
     p+=ABILITIES.ongoing[card.def.abilityId](card,locIdx,side,G);
   const eff=G.locs[locIdx].def.effectId;
   if(eff&&LOCATION_EFFECTS[eff]&&LOCATION_EFFECTS[eff].perCard)
-    p+=LOCATION_EFFECTS[eff].perCard(card,locIdx,side,G);
+    p+=LOCATION_EFFECTS[eff].perCard(card,locIdx,side,G)*(isFeatured(locIdx)?2:1);
   /* team synergy passive */
   if(synergyActive(card,locIdx,side))p+=(R.teamSynergyBonus??1);
   return p;
@@ -1925,6 +1935,8 @@ function renderHowTo(){
     sec("⚡ TURNS & ENERGY",
       `Each turn you get Energy equal to the turn number (turn 3 = 3 Energy). Drag cards from your hand onto a location — each card costs its Energy price, max ${gold(R.maxCardsPerLocation)} cards per side per location. Hit ${gold("End Turn")} and both sides' plays reveal simultaneously, leader first.`+
       ((R.turnTimerSec??0)?` You have ${gold(R.turnTimerSec+"s")} per turn before it ends automatically.`:""))+
+    ((R.featuredEnabled??1)?sec("⭐ FEATURED STAGE",
+      `One stage per day is ${gold("featured")} — it always shows up in the deal and its effect is ${gold("DOUBLED")}. Look for the ⭐ on the plate.`):"")+
     sec("🃏 CARDS & ABILITIES",
       `Cards have a cost and Power. ${gold("On Reveal")} abilities fire once when the card flips; ${gold("Ongoing")} abilities apply while it's on the board. ${gold("Double-tap")} any card for the full view. Locations have their own effects — read the plate!`)+
     sec("🛡 TEAMS, SYNERGY & SUPERS",
@@ -1970,6 +1982,18 @@ $("btnConcedeYes").onclick=()=>{audio.click();
 /* ============================================================================
    MATCH SETUP + TURN ENGINE
    ========================================================================= */
+/* daily featured stage: date-picked from the pool, its effect is DOUBLED.
+   The guest inherits the host's pick via netCfg so clients never disagree. */
+function featuredId(){
+  if(!(R.featuredEnabled??1))return null;
+  if(G._featuredOverride!==undefined)return G._featuredOverride;
+  const d=new Date();
+  const key=d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();
+  const locs=CFG.locations||[];
+  if(!locs.length)return null;
+  return locs[Math.floor(mulberry32(key*104729)()*locs.length)].id;
+}
+function isFeatured(li){return G.locs[li]&&G.locs[li].def.id===featuredId();}
 function startMatch(mode,{seed,locIds}={}){
   G.matchSeq=(G.matchSeq||0)+1; /* invalidates any in-flight reveal loop */
   G.rematch={me:false,op:false};G.remoteGone=false;
@@ -1979,10 +2003,18 @@ function startMatch(mode,{seed,locIds}={}){
   G.seed=seed??Math.floor(Math.random()*1e9);
   G.rng=mulberry32(G.seed);
 
-  /* pick locations: host/AI-mode picks randomly (seeded), guest receives ids */
+  /* pick locations: host/AI-mode picks randomly (seeded), guest receives ids.
+     The daily FEATURED stage (doubled effect) is guaranteed into the deal. */
   let pool;
   if(locIds){pool=locIds.map(id=>CFG.locations.find(l=>l.id===id));}
-  else{pool=shuffle([...CFG.locations],G.rng).slice(0,R.locationCount);}
+  else{
+    pool=shuffle([...CFG.locations],G.rng).slice(0,R.locationCount);
+    const fid=featuredId();
+    if(fid&&!pool.some(l=>l.id===fid)){
+      const f=CFG.locations.find(l=>l.id===fid);
+      if(f)pool[Math.floor(G.rng()*pool.length)]=f;
+    }
+  }
   G.chosenLocIds=pool.map(l=>l.id);
   G.locs=pool.map(def=>({def,cards:{me:[],op:[]},forgeUsed:{},scorch:{me:0,op:0}}));
 
@@ -2441,7 +2473,7 @@ function buildBoardDOM(){
       `<div class="slots op" id="slotsOp${i}">`+`<div class="slot"></div>`.repeat(R.maxCardsPerLocation)+`</div>`+
       `<div class="locPlate" id="plate${i}" style="background-image:url('${L.def.imageURL}')">`+
         `<div class="totals"><span class="totOp" id="totOp${i}">0</span></div>`+
-        `<div class="locName">${esc(L.def.name)}</div>`+
+        `<div class="locName">${isFeatured(i)?"⭐ ":""}${esc(L.def.name)}${isFeatured(i)?" ⭐":""}</div>`+
         `<div class="locEffect">${esc(L.def.effectText)}</div>`+
         `<div class="totals"><span class="totMe" id="totMe${i}">0</span></div>`+
       `</div>`+
@@ -2932,6 +2964,7 @@ function netCfg(){
     music:CFG.music,
     voice:CFG.voice,
     emotes:CFG.emotes,
+    featured:featuredId(),
   };
   try{
     const size=JSON.stringify(cfg).length;
@@ -2947,7 +2980,7 @@ class NetManager{
   backupCfg(){if(!this._cfgBackup)
     this._cfgBackup={rules:JSON.parse(JSON.stringify(CFG.rules)),cards:CFG.cards,
       locations:CFG.locations,teams:CFG.teams,music:CFG.music};}
-  restoreCfg(){if(this._cfgBackup){
+  restoreCfg(){delete G._featuredOverride;if(this._cfgBackup){
     Object.keys(CFG.rules).forEach(k=>{if(k!=="energyPerTurn")delete CFG.rules[k];});
     Object.assign(CFG.rules,this._cfgBackup.rules);
     CFG.cards=this._cfgBackup.cards;
@@ -3042,7 +3075,8 @@ function handleNet(d){
         if(d.cfg.teams)CFG.teams=d.cfg.teams;
         if(d.cfg.music)CFG.music=d.cfg.music;
         if(d.cfg.voice)CFG.voice=d.cfg.voice;
-        if(d.cfg.emotes)CFG.emotes=d.cfg.emotes;}
+        if(d.cfg.emotes)CFG.emotes=d.cfg.emotes;
+        G._featuredOverride=d.cfg.featured??null;}
       G.remoteName=d.name||G.remoteName;
       startMatch("guest",{seed:d.seed});break;
     case "plays": onOppPlays(d);break;
@@ -3798,7 +3832,7 @@ $("deckName").addEventListener("input",()=>{deckEdit.name=$("deckName").value;})
 const ADMIN_RULES=["turns","locationCount","maxCardsPerLocation","locationsToWin",
   "deckSize","startingHand","maxHand","aiThinkMs","revealStaggerMs","interactStaggerMs",
   "superTeamSize","superUsesPerTeam","superCooldownTurns","superCost",
-  "teamSynergyMin","teamSynergyBonus","turnTimerSec","cubesEnabled","unlocksEnabled","unlockStartCount","hintsEnabled","hintGamesMax","dailiesEnabled","tutorialEnabled"];
+  "teamSynergyMin","teamSynergyBonus","turnTimerSec","cubesEnabled","unlocksEnabled","unlockStartCount","hintsEnabled","hintGamesMax","dailiesEnabled","tutorialEnabled","featuredEnabled"];
 const Admin={
   KEY:"gaam_admin",
   applyStored(){try{
@@ -4154,6 +4188,9 @@ $("btnAdminReset").onclick=()=>{audio.click();Admin.reset();toast("Overrides cle
 $("btnAdminClose").onclick=()=>{audio.click();closeAdmin();};
 Admin.applyStored(); /* boot: re-apply saved edits */
 updateDailyBtn(); /* after Dailies + rules exist */
+{const fid=featuredId();
+ const f=fid&&CFG.locations.find(l=>l.id===fid);
+ $("featuredLine").textContent=f?("⭐ Featured stage today: "+f.name+" — effect DOUBLED!"):"";}
 
 /* ============================================================================
    MENU / OVERLAY WIRING

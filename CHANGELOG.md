@@ -4,6 +4,9 @@ All notable changes to GAAM Card Battle. Convention: add an entry under **Unrele
 
 ## Unreleased
 
+- **⭐ Featured stage of the day** — one stage per day (date-picked, same for everyone) is guaranteed into every match's deal with its **effect doubled**, starred on the plate and announced on the menu. Guests inherit the host's pick via netCfg. `rules.featuredEnabled: 0` disables.
+- **2 wild stages (14 total)** — **Underdog Alley** (comeback ring: the side losing the location gets +2 Power per card — raw-sum based, recursion-safe) and **Chaos Rift** (every card revealed there gets −2..+3 Power from the shared rng, multiplayer-deterministic).
+
 - **👋 First-match tutorial** — a brand-new account's first AI match gets guided coach callouts (drag a card → end turn → reveals → energy curve → teams → SUPER READY → final turn) with gold highlights on the actual controls; steps auto-advance as the player does the thing. Skippable, never repeats (`gaam_tut_done`), `rules.tutorialEnabled: 0` disables.
 
 - **😀 Multiplayer emotes** — tap the 😀 pill during an online match to send one of six reactions (👍 😱 😂 💀 "GG" "Nice one!"); they pop up as speech bubbles on both screens, with a 5-second cooldown. The set is editable in `config.js → emotes` (host's set syncs to the guest; publishable via the admin).
