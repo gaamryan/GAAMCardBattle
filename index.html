@@ -1249,6 +1249,55 @@ const Voice={
     return vs.sort((a,b)=>score(b)-score(a))[0]||null;
   },
   HYPE:["OHHH!","LET'S GO!","HERE WE GO!","OH YEAH!","ARE YOU READY?!"],
+  /* ── recorded voice pack (docs/VOICE_PACK.md): assets/voice/<key>.mp3.
+     Any file that exists overrides the synth voice for that line. ── */
+  PACK_DIR:"assets/voice/",
+  PACK_KEYS:["battle_start","round_1","round_2","round_3","round_4","round_5",
+    "final_turn","hurry","times_up","super_attack","super_revive","revived",
+    "snap","combo","incredible","victory","perfect","defeat","draw",
+    "new_card","rematch","ohhh","lets_go","here_we_go"],
+  PACK_MAP:[
+    [/FINAL (TURN|ROUND)/i,()=>"final_turn"],
+    [/^TURN (\d+)/i,m=>"round_"+m[1]],
+    [/HURRY/i,()=>"hurry"],
+    [/TIME'?S UP/i,()=>"times_up"],
+    [/SUPER ATTACK/i,()=>"super_attack"],
+    [/SUPER REVIVE/i,()=>"super_revive"],
+    [/HAS BEEN REVIVED/i,()=>"revived"],
+    [/SNAPPED|STAKES/i,()=>"snap"],
+    [/PERFECT/i,()=>"perfect"],
+    [/VICTORY|OPPONENT CONCEDED/i,()=>"victory"],
+    [/DEFEAT|YOU CONCEDED/i,()=>"defeat"],
+    [/DRAW/i,()=>"draw"],
+    [/UNLOCKED/i,()=>"new_card"],
+    [/REMATCH/i,()=>"rematch"],
+    [/\bVS\b/i,()=>"battle_start"],
+  ],
+  _pack:{},
+  preloadPack(){ /* probe once at boot; missing files simply stay synth */
+    this.PACK_KEYS.forEach(k=>{
+      try{
+        const a=new Audio(this.PACK_DIR+k+".mp3");
+        a.preload="auto";
+        a.addEventListener("canplaythrough",()=>{this._pack[k]=a;},{once:true});
+        a.addEventListener("error",()=>{delete this._pack[k];},{once:true});
+      }catch(e){}
+    });
+  },
+  playPack(txt){
+    for(const [rx,fn] of this.PACK_MAP){
+      const m=String(txt).match(rx);
+      if(m){
+        const a=this._pack[fn(m)];
+        if(!a)return false;
+        try{a.currentTime=0;a.volume=1;
+          const p=a.play();if(p&&p.catch)p.catch(()=>{});
+          return true;
+        }catch(e){return false;}
+      }
+    }
+    return false;
+  },
   say(txt,force){
     if(!this.enabled())return;
     if(REDUCED_MOTION&&!force)return;
@@ -1260,6 +1309,7 @@ const Voice={
         .replace(/\bVS\b/gi," versus ")
         .replace(/[^\w\s!?'.,-]/g," ").replace(/\s+/g," ").trim();
       if(!clean)return;
+      if(this.playPack(txt))return; /* a recorded line beats the synth */
       /* excite mode: shouted interjections + hard exclamations on the big beats */
       if(st.excite){
         if(!/[!?]$/.test(clean))clean+="!";
@@ -1852,6 +1902,7 @@ $("btnVoice").onclick=()=>{audio.click();
   toast(on?"🎙 Announcer ON":"Announcer muted",1500);
   if(on)Voice.say("Announcer ready!",true);};
 Voice.updateBtn();
+Voice.preloadPack();
 $("btnQuit").onclick=()=>{audio.click();
   if(G.phase==="menu"||G.phase==="over")return;
   showOverlay("quitOverlay");};
@@ -1966,8 +2017,9 @@ function startTurnTimer(){
   turnTimerIv=setInterval(()=>{
     if(tok!==G.matchSeq||G.phase!=="staging"){stopTurnTimer();return;}
     left--;paint();
+    if(left===10)Voice.say("HURRY UP!");
     if(left<=5&&left>0)audio.click();
-    if(left<=0){toast("⏱ Time's up!");endTurnPressed();}
+    if(left<=0){toast("⏱ Time's up!");Voice.say("TIME'S UP!");endTurnPressed();}
   },1000);
 }
 /* ── SNAP: double the cube stake, once per player per match ── */
@@ -2164,7 +2216,7 @@ async function endMatch(){
     await sleep(640);
   }
   if(tok!==G.matchSeq)return;
-  bannerEpic(outcome==="win"?"VICTORY!":outcome==="lose"?"DEFEAT":"DRAW");
+  bannerEpic(outcome==="win"?(w.op===0?"PERFECT VICTORY!":"VICTORY!"):outcome==="lose"?"DEFEAT":"DRAW");
   audio.gameEnd(outcome==="win");
   if(outcome==="win")fx.confetti();
   await sleep(1300);

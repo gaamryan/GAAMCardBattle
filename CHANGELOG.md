@@ -4,6 +4,8 @@ All notable changes to GAAM Card Battle. Convention: add an entry under **Unrele
 
 ## Unreleased
 
+- **Recorded voice-pack support** — drop MP3 call-outs into `assets/voice/` (exact filenames + full recording script in `docs/VOICE_PACK.md`: battle start, rounds 1–5, final round, hurry-up/time's-up, supers, revive, snap, combo, results incl. PERFECT VICTORY, new card, rematch, interjections) and the game plays them instead of the synthesized announcer, line by line, with per-line synth fallback for anything missing. New timer call-outs: "HURRY UP!" at 10s, "TIME'S UP!" at zero. Winning every location now announces **PERFECT VICTORY!**
+
 - **Announcer 2.0** — new default "Maximum Hype" voice style: prefers the most natural voice on the device (Google/neural/enhanced voices ranked first), faster and higher-energy delivery, and shouted interjections ("OHHH!", "LET'S GO!", "ARE YOU READY?!") on the big beats (supers, FINAL TURN, victory, snaps, revives). Old styles remain selectable in Admin → Music.
 - **Final-turn heartbeat** — much heavier chest-thump lub-DUB that *accelerates* as the final turn drags on (~1.3s → 0.7s pulse), while the music ducks down so the pressure lands.
 - **Account-type badge** — the 👤 menu button now labels who you are: ☁ ONLINE (signed-in cloud account), 📱 LOCAL (named profile on this device), or 🎮 GUEST.
