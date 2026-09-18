@@ -145,6 +145,17 @@ body{display:flex;align-items:center;justify-content:center;
   transition:transform .1s,filter .2s;}
 #btnEnd:active{transform:translateY(2px);box-shadow:0 1px 0 #a86a00;}
 #btnEnd:disabled{filter:grayscale(.7) brightness(.55);cursor:not-allowed;}
+#coachBox{position:absolute;left:50%;bottom:34%;transform:translateX(-50%);z-index:90;
+  width:min(86%,340px);background:#101228f2;border:2px solid var(--gold);border-radius:16px;
+  padding:12px 14px;display:none;box-shadow:0 10px 40px #000c;}
+#coachText{font-size:13px;line-height:1.5;color:var(--ink);}
+#coachRow{display:flex;gap:8px;margin-top:10px;justify-content:flex-end;}
+#coachRow button{border:none;border-radius:10px;padding:7px 12px;font-weight:800;cursor:pointer;font-size:12px;}
+#coachGotIt{background:linear-gradient(180deg,#ffd257,#c98a00);color:#221;}
+#coachSkip{background:#ffffff14;color:var(--dim);}
+.coachTarget{outline:3px solid var(--gold) !important;outline-offset:3px;border-radius:12px;
+  animation:coachPulse 1s ease-in-out infinite alternate;}
+@keyframes coachPulse{from{outline-color:#ffd257}to{outline-color:#ffd25733}}
 #emoteStrip{position:absolute;top:44px;left:50%;transform:translateX(-50%);z-index:80;
   display:none;gap:6px;background:#101024ee;border:1px solid #ffffff26;border-radius:14px;padding:8px;}
 #emoteStrip button{border:none;background:#ffffff12;border-radius:10px;padding:7px 10px;cursor:pointer;
@@ -461,6 +472,13 @@ body{display:flex;align-items:center;justify-content:center;
   </div>
 
   <div id="emoteStrip"></div>
+  <div id="coachBox">
+    <div id="coachText"></div>
+    <div id="coachRow">
+      <button id="coachSkip">Skip tutorial</button>
+      <button id="coachGotIt">Got it!</button>
+    </div>
+  </div>
 
   <!-- ---- Board: 3 locations, enemy slots on top, mine below ---- -->
   <div id="board"></div>
@@ -1996,6 +2014,7 @@ function startMatch(mode,{seed,locIds}={}){
   startAmbient();
   startWeather();
   G._revives=0;
+  if(mode==="ai"&&Tutorial.wants())setTimeout(()=>Tutorial.start(),2600);
   {const tc={};G.me.deck.concat(G.me.hand).forEach(c=>{
     const t=teamOf(c.def.id);if(t)tc[t.id]=(tc[t.id]||0)+1;});
    G._maxTeam=Object.values(tc).reduce((a,b)=>Math.max(a,b),0);}
@@ -2085,6 +2104,91 @@ $("btnSnap").onclick=()=>{
   audio.click();doSnap("me");
   if(G.mode!=="ai")net.send({t:"snap"});
 };
+/* ============================================================================
+   TUTORIAL — guided callouts during a brand-new player's first AI match.
+   Steps appear when their condition is met and either auto-advance when
+   the player does the thing, or wait for "Got it!". Fully skippable;
+   never shows again once finished (gaam_tut_done).
+   ========================================================================= */
+const Tutorial={
+  KEY:"gaam_tut_done",
+  active:false,_step:0,_iv:null,_tok:0,
+  wants(){try{
+    if(!(R.tutorialEnabled??1))return false;
+    if(localStorage.getItem(this.KEY))return false;
+    const st=Stats.load();
+    return ((st.win||0)+(st.lose||0)+(st.draw||0))===0;
+  }catch(e){return false;}},
+  STEPS:[
+    {cond:()=>G.phase==="staging"&&G.turn===1,target:"#hand",
+     text:"👋 Welcome! This is your hand. DRAG a card up onto one of the three locations. A card costs its ⚡ Energy price (top corner).",
+     done:()=>G.me.staged.length>0},
+    {cond:()=>G.phase==="staging"&&G.me.staged.length>0,target:"#btnEnd",
+     text:"Nice! Hit END TURN when you're ready — both sides reveal their plays at the same time.",
+     done:()=>G.phase!=="staging"},
+    {cond:()=>G.phase==="revealing",target:null,
+     text:"Reveals! The side winning more locations reveals first. Tap anywhere to fast-forward.",
+     done:()=>G.phase!=="revealing"},
+    {cond:()=>G.phase==="staging"&&G.turn===2,target:"#energyBox",
+     text:"Energy grows with the turn number, so your big cards come later. Win 2 of 3 locations by having more total Power.",gotit:true},
+    {cond:()=>G.phase==="staging"&&G.turn>=3,target:null,
+     text:"See the colored dots on cards? Teammates! Two of the same team at one location get a synergy bonus — and unlock their team's ⚡ SUPER.",gotit:true},
+    {cond:()=>!!document.querySelector(".superBtn"),target:".superBtn",
+     text:"⚡ SUPER READY! Tap the pulsing button on that location — Supers destroy an enemy card or revive a fallen one!",
+     done:()=>G.me.staged.some(x=>x.super)||G.phase!=="staging",soft:true},
+    {cond:()=>G.turn>=R.turns&&G.phase==="staging",target:null,
+     text:"🔥 FINAL TURN — everything counts now. Drop your biggest plays. Good luck!",gotit:true},
+  ],
+  start(){
+    this.active=true;this._step=0;this._tok=G.matchSeq;
+    this._iv=setInterval(()=>this._tick(),400);
+  },
+  stop(finished){
+    this.active=false;
+    if(this._iv){clearInterval(this._iv);this._iv=null;}
+    this._hide();
+    try{localStorage.setItem(this.KEY,"1");}catch(e){}
+    if(finished)toast("Tutorial complete — you've got this! 🎉",2600);
+  },
+  _hide(){
+    $("coachBox").style.display="none";
+    document.querySelectorAll(".coachTarget").forEach(el=>el.classList.remove("coachTarget"));
+  },
+  _showing:false,
+  _tick(){
+    if(this._tok!==G.matchSeq||G.phase==="over"||G.phase==="menu"){this.stop(this._step>=this.STEPS.length-1);return;}
+    if(this._step>=this.STEPS.length){this.stop(true);return;}
+    const st=this.STEPS[this._step];
+    if(this._showing){
+      /* re-target (renderAll swaps nodes) and auto-advance */
+      if(st.target){
+        const el=document.querySelector(st.target);
+        if(el&&!el.classList.contains("coachTarget")){
+          document.querySelectorAll(".coachTarget").forEach(x=>x.classList.remove("coachTarget"));
+          el.classList.add("coachTarget");
+        }
+      }
+      if(st.done&&st.done()){this._advance();}
+      else if(st.soft&&!st.cond()){this._advance();} /* moment passed */
+      return;
+    }
+    if(st.cond()){
+      this._showing=true;
+      $("coachText").textContent=st.text;
+      $("coachGotIt").style.display=st.gotit?"":"none";
+      $("coachBox").style.display="block";
+      if(st.target){const el=document.querySelector(st.target);if(el)el.classList.add("coachTarget");}
+      audio.play("chime");
+    }
+  },
+  _advance(){
+    this._hide();this._showing=false;this._step++;
+    if(this._step>=this.STEPS.length)this.stop(true);
+  },
+};
+$("coachGotIt").onclick=()=>{audio.click();Tutorial._advance();};
+$("coachSkip").onclick=()=>{audio.click();Tutorial.stop(false);toast("Tutorial skipped — 📖 How to Play has everything.",2600);};
+
 /* ── EMOTES: canned reactions over the wire (multiplayer only) ── */
 let _emoteCool=0;
 function emoteList(){return (CFG.emotes&&CFG.emotes.length?CFG.emotes:["👍","😱","😂","💀","GG","Nice one!"]).slice(0,8);}
@@ -3694,7 +3798,7 @@ $("deckName").addEventListener("input",()=>{deckEdit.name=$("deckName").value;})
 const ADMIN_RULES=["turns","locationCount","maxCardsPerLocation","locationsToWin",
   "deckSize","startingHand","maxHand","aiThinkMs","revealStaggerMs","interactStaggerMs",
   "superTeamSize","superUsesPerTeam","superCooldownTurns","superCost",
-  "teamSynergyMin","teamSynergyBonus","turnTimerSec","cubesEnabled","unlocksEnabled","unlockStartCount","hintsEnabled","hintGamesMax","dailiesEnabled"];
+  "teamSynergyMin","teamSynergyBonus","turnTimerSec","cubesEnabled","unlocksEnabled","unlockStartCount","hintsEnabled","hintGamesMax","dailiesEnabled","tutorialEnabled"];
 const Admin={
   KEY:"gaam_admin",
   applyStored(){try{

@@ -52,6 +52,7 @@ window.GAAM_CONFIG = {
     hintsEnabled: 1,        // rookie hint: glow the best location while dragging
     hintGamesMax: 10,       // hints turn off automatically after this many games
     dailiesEnabled: 1,      // 🎯 three daily challenges with cube/unlock rewards
+    tutorialEnabled: 1,     // guided callouts during a new player's first AI match
     revealStaggerMs: 900,   // pause between each card reveal
     interactStaggerMs: 130, // pause between multi-target ability hits
     superTeamSize: 2,       // team members needed at one location to unlock a Super

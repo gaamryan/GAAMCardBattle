@@ -4,6 +4,8 @@ All notable changes to GAAM Card Battle. Convention: add an entry under **Unrele
 
 ## Unreleased
 
+- **👋 First-match tutorial** — a brand-new account's first AI match gets guided coach callouts (drag a card → end turn → reveals → energy curve → teams → SUPER READY → final turn) with gold highlights on the actual controls; steps auto-advance as the player does the thing. Skippable, never repeats (`gaam_tut_done`), `rules.tutorialEnabled: 0` disables.
+
 - **😀 Multiplayer emotes** — tap the 😀 pill during an online match to send one of six reactions (👍 😱 😂 💀 "GG" "Nice one!"); they pop up as speech bubbles on both screens, with a 5-second cooldown. The set is editable in `config.js → emotes` (host's set syncs to the guest; publishable via the admin).
 
 - **🎯 Daily challenges** — three per day, identical for every player (date-seeded pick from a 10-challenge pool: wins, supers, revives, snapped wins, perfect games, power thresholds, team decks, cube banking). Progress tracks automatically across matches; rewards (+2/+3 🎲 or a bonus card unlock) land with a "CHALLENGE COMPLETE!" banner. Menu button shows today's 0–3 count; `rules.dailiesEnabled: 0` disables.
