@@ -441,6 +441,7 @@ body{display:flex;align-items:center;justify-content:center;
     <span class="pill" id="oppPill"><b id="oppName">AI</b> · Hand: <span id="oppHand">3</span></span>
     <span class="pill" id="turnPill">Turn <b id="turnNow">1</b>/<span id="turnMax">6</span> <span id="turnTimer"></span></span>
     <span class="pill" id="btnQuit" title="Concede match">🏳</span>
+    <span class="pill" id="btnVoice" title="Toggle announcer" style="cursor:pointer">🎙</span>
     <span class="pill" id="btnMute" title="Toggle sound">🔊</span>
   </div>
 
@@ -487,8 +488,16 @@ body{display:flex;align-items:center;justify-content:center;
     </div>
     <button class="mbtn" id="btnDecks">🃏 &nbsp;Deck Builder</button>
     <button class="mbtn" id="btnBoard">🏆 &nbsp;Leaderboard</button>
+    <button class="mbtn" id="btnHowTo">📖 &nbsp;How to Play</button>
     <button class="mbtn" id="btnAdmin">⚙️ &nbsp;Admin</button>
     <div class="subtext">Win 2 of 3 locations by having more Power. 6 turns. Energy grows each turn.</div>
+  </div>
+
+  <!-- ---- How to Play ---- -->
+  <div class="overlay hidden" id="howtoOverlay" style="justify-content:flex-start;overflow-y:auto;touch-action:pan-y;padding:26px 18px;">
+    <div class="ovTitle">📖 HOW TO PLAY</div>
+    <div id="howtoBody" style="max-width:560px;text-align:left;font-size:13px;line-height:1.55;color:var(--ink);"></div>
+    <button class="mbtn" id="btnHowToClose" style="margin-top:14px;">Close</button>
   </div>
 
   <!-- ---- Hosting: show code ---- -->
@@ -1079,6 +1088,10 @@ const WEATHER_TYPES={
   sparks:{c:"#ffe95e",sz:[1.5,2.5],dur:[1200,1900],rise:true,drift:30,op:.9},
   gold:  {c:"#ffd257",sz:[1.5,3],dur:[3000,4600],rise:false,drift:18,op:.6},
   neon:  {c:"#ff5fd0",sz:[2,3.5],dur:[2800,4200],rise:false,drift:34,op:.5},
+  fog:   {c:"#aab0c4",sz:[26,44],dur:[6000,9000],rise:false,drift:46,op:.12},
+  petals:{c:"#ffb7d5",sz:[2.5,4],dur:[3400,5200],rise:false,drift:44,op:.75},
+  leaves:{c:"#7fd06a",sz:[2.5,4],dur:[3600,5400],rise:false,drift:52,op:.7},
+  stars: {c:"#cfe4ff",sz:[1,2],  dur:[2600,4000],rise:true, drift:10,op:.85},
 };
 let weatherTimer=null;
 function startWeather(){
@@ -1194,13 +1207,54 @@ function closeOverlay(id,cb){
   a.onfinish=done;setTimeout(done,260);
 }
 /* big zoom-in/zoom-out announcement text ("TURN 3", "LOCATION WON"...) */
+/* ============================================================================
+   ANNOUNCER VOICE — arcade-style speech for the big banner moments, via the
+   browser's speech synthesis (no audio files). CFG.voice.style picks a
+   character (admin-publishable → identical for every player); the 🎙 pill
+   in the top bar mutes it locally.
+   ========================================================================= */
+const Voice={
+  KEY:"gaam_voice_off",
+  supported:(()=>{try{return "speechSynthesis" in window;}catch(e){return false;}})(),
+  muted(){try{return localStorage.getItem(this.KEY)==="1";}catch(e){return false;}},
+  enabled(){return this.supported&&((CFG.voice||{}).enabled??1)&&!this.muted();},
+  toggle(){try{localStorage.setItem(this.KEY,this.muted()?"0":"1");}catch(e){}
+    this.updateBtn();return !this.muted();},
+  updateBtn(){const b=$("btnVoice");if(!b)return;
+    b.style.display=this.supported?"":"none";
+    b.textContent=this.muted()?"🎙̶":"🎙";
+    b.title=this.muted()?"Announcer off — tap to enable":"Announcer on — tap to mute";
+    b.style.opacity=this.muted()?".45":"1";},
+  say(txt,force){
+    if(!this.enabled())return;
+    if(REDUCED_MOTION&&!force)return;
+    try{
+      const V=CFG.voice||{};
+      const st=(V.styles||{})[V.style]||{};
+      /* strip emoji/symbols; keep the shout */
+      const clean=String(txt).replace(/[×]/g," times ")
+        .replace(/[^\w\s!?'.,-]/g," ").replace(/\s+/g," ").trim();
+      if(!clean)return;
+      speechSynthesis.cancel();
+      const u=new SpeechSynthesisUtterance(clean);
+      u.pitch=st.pitch??0.55;u.rate=st.rate??1.1;u.volume=1;
+      const vs=speechSynthesis.getVoices().filter(v=>(v.lang||"").toLowerCase().startsWith("en"));
+      let pick=null;
+      if(st.voiceHint){try{const rx=new RegExp(st.voiceHint,"i");pick=vs.find(v=>rx.test(v.name));}catch(e){}}
+      u.voice=pick||vs[0]||null;
+      speechSynthesis.speak(u);
+    }catch(e){}
+  },
+};
 function bannerEpic(txt){
+  Voice.say(txt);
   const b=$("banner");
   b.classList.add("epic");
   banner(txt,1900);
   setTimeout(()=>b.classList.remove("epic"),1950);
 }
 function banner(txt,dur=1150){
+  if(/TURN/i.test(txt))Voice.say(txt); /* round call-outs */
   const b=$("banner");b.textContent=txt;b.classList.remove("hidden");
   if(!b.animate){setTimeout(()=>b.classList.add("hidden"),900);return;}
   const a=b.animate([
@@ -1334,6 +1388,8 @@ const LOCATION_EFFECTS = {
   buffAll:      {perCard:()=>2},
   chillAll:     {perCard:()=>-1},
   crowdedBonus: {perCard:(c,li,side,st)=>1}, /* +1 per card you have = +1 each */
+  masterBonus:  {perCard:(c)=>c.def.cost>=5?2:0},          /* Rooftop Dojo */
+  loneBuilder:  {perCard:(c,li,side,st)=>st.locs[li].cards[side].length===1?2:0}, /* Block Fortress */
   forgeFirst:   {onCardRevealed(ctx){
     const L=ctx.state.locs[ctx.locIdx];
     if(!L.forgeUsed) L.forgeUsed={};
@@ -1730,6 +1786,43 @@ $("btnRematch").onclick=()=>{
   updateRematchBtn();
 };
 
+/* HOW TO PLAY — text is generated from the live CFG.rules values, so rule
+   changes (config, admin, published) show up here automatically. When a NEW
+   MECHANIC ships, add a section below (see CLAUDE.md docs checklist). */
+function renderHowTo(){
+  const sec=(title,body)=>`<div class="lbHead" style="margin-top:14px">${title}</div><div>${body}</div>`;
+  const gold=t=>`<b style="color:var(--gold)">${t}</b>`;
+  $("howtoBody").innerHTML=
+    sec("🎯 THE GOAL",
+      `Win ${gold(R.locationsToWin)} of the 3 locations by having more total Power there when the match ends after ${gold(R.turns)} turns. Tied locations count for no one; full ties fall to total Power.`)+
+    sec("⚡ TURNS & ENERGY",
+      `Each turn you get Energy equal to the turn number (turn 3 = 3 Energy). Drag cards from your hand onto a location — each card costs its Energy price, max ${gold(R.maxCardsPerLocation)} cards per side per location. Hit ${gold("End Turn")} and both sides' plays reveal simultaneously, leader first.`+
+      ((R.turnTimerSec??0)?` You have ${gold(R.turnTimerSec+"s")} per turn before it ends automatically.`:""))+
+    sec("🃏 CARDS & ABILITIES",
+      `Cards have a cost and Power. ${gold("On Reveal")} abilities fire once when the card flips; ${gold("Ongoing")} abilities apply while it's on the board. ${gold("Double-tap")} any card for the full view. Locations have their own effects — read the plate!`)+
+    sec("🛡 TEAMS, SYNERGY & SUPERS",
+      `Every card can belong to a team (colored dot). ${gold(R.teamSynergyMin)}+ teammates at one location = ${gold("+"+R.teamSynergyBonus+" Power")} each (synergy). Get ${gold(R.superTeamSize)} teammates on one location and the ${gold("⚡ SUPER")} button appears: ${gold("Super Attack")} teams destroy a random enemy card there (to the graveyard 💀); ${gold("Super Revive")} teams bring a fallen card back with a protective halo. A super costs ${gold((R.superCostMode==="all")?"ALL your Energy":R.superCost+" Energy")}, ${gold((R.superUsesPerTeam??1)+" use"+((R.superUsesPerTeam??1)>1?"s":""))} per team per match`+
+      ((R.superCooldownTurns??0)?`, with a ${gold(R.superCooldownTurns+"-turn")} cooldown`:"")+`.`)+
+    ((R.cubesEnabled??1)?sec("🎲 CUBES & SNAP",
+      `Every match is played for cubes — the stake starts at 1. Hit ${gold("SNAP")} (purple button) to double it, once per player; both players snapping makes ×4. Win the match, win the stake; concede (retreat) or lose, and you pay it. Cube totals rank on the leaderboard.`):"")+
+    ((R.unlocksEnabled??0)?sec("🔓 UNLOCKING CARDS",
+      `New accounts start with the ${gold(R.unlockStartCount??16)} cheapest cards. Every ${gold("WIN")} unlocks one random new card. Locked cards appear greyed with 🔒 in the deck builder.`):"")+
+    sec("🏗 DECKS",
+      `Build up to 5 decks of ${gold(R.deckSize)} cards (max 2 copies each) in the Deck Builder; ★ Set Active picks the one you play. Short decks are padded automatically.`)+
+    sec("📡 MULTIPLAYER",
+      `Host a match to get a code; your friend hits Join and enters it. Only your plays travel — hands stay private. Rematch instantly from the results screen. With an online account your decks, stats, rating and unlocks follow you to any device.`)+
+    sec("⏩ GOOD TO KNOW",
+      `Tap anywhere during a reveal to fast-forward it. 🎙 toggles the announcer, 🔊 the sound. 🏳 concedes.`);
+}
+$("btnHowTo").onclick=()=>{audio.click();renderHowTo();
+  closeOverlay("menuOverlay",()=>showOverlay("howtoOverlay"));};
+$("btnHowToClose").onclick=()=>{audio.click();
+  closeOverlay("howtoOverlay",()=>showOverlay("menuOverlay"));};
+$("btnVoice").onclick=()=>{audio.click();
+  const on=Voice.toggle();
+  toast(on?"🎙 Announcer ON":"Announcer muted",1500);
+  if(on)Voice.say("Announcer ready!",true);};
+Voice.updateBtn();
 $("btnQuit").onclick=()=>{audio.click();
   if(G.phase==="menu"||G.phase==="over")return;
   showOverlay("quitOverlay");};
@@ -2527,6 +2620,7 @@ function netCfg(){
     locations:CFG.locations,
     teams:CFG.teams,
     music:CFG.music,
+    voice:CFG.voice,
   };
   try{
     const size=JSON.stringify(cfg).length;
@@ -2634,7 +2728,8 @@ function handleNet(d){
         if(d.cfg.cards)CFG.cards=d.cfg.cards;
         if(d.cfg.locations)CFG.locations=d.cfg.locations;
         if(d.cfg.teams)CFG.teams=d.cfg.teams;
-        if(d.cfg.music)CFG.music=d.cfg.music;}
+        if(d.cfg.music)CFG.music=d.cfg.music;
+        if(d.cfg.voice)CFG.voice=d.cfg.voice;}
       G.remoteName=d.name||G.remoteName;
       startMatch("guest",{seed:d.seed});break;
     case "plays": onOppPlays(d);break;
@@ -3018,7 +3113,7 @@ const Cloud={
 function applyPublishedConfig(pub){
   if(!pub||typeof pub!=="object")return;
   if(pub.rules)Object.assign(CFG.rules,pub.rules);
-  ["cards","locations","teams","music","sprites","fxLibrary","superFinishers"]
+  ["cards","locations","teams","music","voice","sprites","fxLibrary","superFinishers"]
     .forEach(k=>{if(pub[k])CFG[k]=pub[k];});
   Admin.applyStored();
 }
@@ -3295,6 +3390,9 @@ const Admin={
     Object.assign(CFG.rules,ov.rules||{});
     (ov.cards||[]).forEach(o=>{const c=CFG.cards.find(x=>x.id===o.id);if(c)Object.assign(c,o);});
     (ov.locations||[]).forEach(o=>{const l=CFG.locations.find(x=>x.id===o.id);if(l)Object.assign(l,o);});
+    if(ov.voice){CFG.voice=CFG.voice||{};
+      if(ov.voice.enabled!==undefined)CFG.voice.enabled=ov.voice.enabled;
+      if(ov.voice.style)CFG.voice.style=ov.voice.style;}
     Object.entries(ov.music||{}).forEach(([k,m])=>{
       CFG.music=CFG.music||{};
       if(k==="mode"){CFG.music.mode=m;return;}
@@ -3309,6 +3407,7 @@ const Admin={
         vfx:c.vfx,interactFx:c.interactFx,sfx:c.sfx,abilityText:c.abilityText})),
       locations:CFG.locations.map(l=>({id:l.id,name:l.name,imageURL:l.imageURL,
         effectId:l.effectId,fxKey:l.fxKey,effectText:l.effectText})),
+      voice:{enabled:(CFG.voice||{}).enabled??1,style:(CFG.voice||{}).style||"arcade"},
       music:Object.assign(
         Object.fromEntries(Object.entries(CFG.music||{})
           .filter(([k,v])=>v&&typeof v==="object"&&!Array.isArray(v)&&k!=="__random")
@@ -3447,6 +3546,26 @@ function renderAdminMusic(b){
     (M.pool=M.pool||[]).push("assets/music/");renderAdmin();};
   addRow.appendChild(add);
   b.appendChild(addRow);
+  aHead(b,"ANNOUNCER VOICE — heard by ALL players when published");
+  const V=CFG.voice=CFG.voice||{enabled:1,style:"arcade",styles:{}};
+  const vrow=document.createElement("div");vrow.className="aRow";
+  vrow.innerHTML=`<label>announcer</label><select data-voiceon>
+    <option value="1"${(V.enabled??1)?" selected":""}>On</option>
+    <option value="0"${!(V.enabled??1)?" selected":""}>Off</option></select>`;
+  b.appendChild(vrow);
+  const srow=document.createElement("div");srow.className="aRow";
+  srow.innerHTML=`<label>voice style</label><select data-voicestyle>`+
+    Object.entries(V.styles||{}).map(([k,v])=>
+      `<option value="${esc(k)}"${V.style===k?" selected":""}>${esc(v.label||k)}</option>`).join("")+
+    `</select>`;
+  b.appendChild(srow);
+  const test=document.createElement("button");test.className="aFileBtn";
+  test.textContent="🔊 Test voice";
+  test.onclick=()=>{const sel=$("adminBody").querySelector("[data-voicestyle]");
+    if(sel)CFG.voice.style=sel.value;
+    Voice.say("Final turn! Super attack! Victory!",true);};
+  const trow=document.createElement("div");trow.className="aRow";
+  trow.appendChild(test);b.appendChild(trow);
   aHead(b,"SCREEN MUSIC");
   [["menu","Home screen music"],["battle","Default battle music"]].forEach(([k,lbl])=>{
     const src=(CFG.music&&CFG.music[k]&&CFG.music[k].src)||"";
@@ -3556,6 +3675,10 @@ function collectAdmin(){
   $("adminBody").querySelectorAll("[data-team]").forEach(row=>{
     const t=(CFG.teams||{})[row.dataset.team];if(!t)return;
     row.querySelectorAll("[data-f]").forEach(inp=>{t[inp.dataset.f]=inp.value;});});
+  const von=$("adminBody").querySelector("[data-voiceon]");
+  if(von){CFG.voice=CFG.voice||{};CFG.voice.enabled=+von.value;}
+  const vst=$("adminBody").querySelector("[data-voicestyle]");
+  if(vst&&vst.value){CFG.voice=CFG.voice||{};CFG.voice.style=vst.value;}
   const mm=$("adminBody").querySelector("[data-musicmode]");
   if(mm){CFG.music=CFG.music||{};CFG.music.mode=mm.value;}
   const poolInputs=$("adminBody").querySelectorAll("[data-pool]");

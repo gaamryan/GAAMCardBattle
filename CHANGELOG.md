@@ -4,6 +4,10 @@ All notable changes to GAAM Card Battle. Convention: add an entry under **Unrele
 
 ## Unreleased
 
+- **📖 How to Play** — new menu button opens an in-game guide (goal, turns/energy, abilities, teams/supers, cubes/snap, unlocks, decks, multiplayer, shortcuts). The text is generated from the live rules, so config/admin/published changes show automatically; new mechanics must add a section (now a CLAUDE.md doc-upkeep requirement).
+- **🎙 Announcer voice** — arcade-style announcer speaks the big banner moments (turn call-outs, FINAL TURN, supers, revives, snaps, results) via the browser's speech synthesis. Players toggle it with the 🎙 pill in the top bar; the admin picks the voice character (Arcade Hype / Deep Doom / Fast Hype / Robo Referee / Ring Announcer, with a Test button in Admin → Music) and publishing makes it every player's voice. Respects reduced motion; syncs to MP guests via netCfg.
+- **7 new stages (12 total)** — video-game homages, each with its own art, weather, ambient FX and synth theme: Pixel Meadow (no effect), Speedway Loop (first card +3), Haunted Manor (-1 all), Rooftop Dojo (new `masterBonus`: cost-5+ cards +2), Block Fortress (new `loneBuilder`: +2 while your only card), Crystal Caverns (+2 all), Star Cruiser (+1 per card). New weather types: fog, petals, leaves, stars. Every match still draws 3 random stages from the pool.
+
 - **Account fixes & cross-device sync**:
   - Fixed account creation: signups were stuck on email confirmation that could never arrive (Supabase's built-in mailer only reaches project members). Accounts are now auto-confirmed server-side (`gaam_autoconfirm` trigger; existing stuck accounts confirmed) and the client signs you in immediately after Create Account.
   - **Full cross-device restore**: signing in on any device now pulls your stats (wins/streaks/rating/cubes — whichever side has more games wins), your card unlocks (new `profiles.unlocked`, merged by union), and your decks (already synced). Unlock grants push up as they happen.

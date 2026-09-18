@@ -9,6 +9,7 @@ Standing conventions for anyone (human or AI) working in this repo. Ryan's rule:
 3. **`docs/BUG_HUNT.md`** — new bugs get an entry with severity, repro, and fix (or fix sketch if left open). Move items out of "known issues" when fixed.
 4. **`docs/NEXT_STEPS.md`** — keep the roadmap honest: check off what ships, add what's newly agreed.
 5. **`README.md`** — update the relevant section when a player- or modder-facing feature changes.
+6. **In-game How to Play** (`renderHowTo()` in index.html) — it reads live `CFG.rules` values, so numeric knob changes track automatically, but every NEW mechanic, mode, or win condition needs its own section added there. A gameplay change is not done until How to Play explains it.
 
 ## Development rules (full detail in docs/ARCHITECTURE.md)
 

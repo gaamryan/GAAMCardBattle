@@ -341,6 +341,21 @@ window.GAAM_CONFIG = {
       effectId: "forgeFirst",    fxKey: "fire",     ambient: "fire",     weather: "embers", effectText: "First card each player plays here gets +3 Power." },
     { id: "golden_city",   name: "Golden City",   imageURL: "assets/locations/golden_city.png",
       effectId: "crowdedBonus",  fxKey: "buff",     ambient: "buff",     weather: "gold",   effectText: "+1 Power here per card you have here." },
+    /* ── video-game homage stages ── */
+    { id: "pixel_meadow",  name: "Pixel Meadow",  imageURL: "assets/locations/pixel_meadow.png",
+      effectId: null,            fxKey: null,       ambient: "flash",  weather: "gold",   effectText: "No effect. A classic 1-1 stroll." },
+    { id: "speedway_loop", name: "Speedway Loop", imageURL: "assets/locations/speedway_loop.png",
+      effectId: "forgeFirst",    fxKey: "electric", ambient: "flash",  weather: "sparks", effectText: "First card each player plays here gets +3 Power. Gotta go fast." },
+    { id: "haunted_manor", name: "Haunted Manor", imageURL: "assets/locations/haunted_manor.png",
+      effectId: "chillAll",      fxKey: "dark",     ambient: "dark",   weather: "fog",    effectText: "Cards here have -1 Power. The dread saps them." },
+    { id: "dojo_rooftop",  name: "Rooftop Dojo",  imageURL: "assets/locations/dojo_rooftop.png",
+      effectId: "masterBonus",   fxKey: "buff",     ambient: "aura",   weather: "petals", effectText: "Masters (cost 5+) get +2 Power here." },
+    { id: "block_fortress",name: "Block Fortress",imageURL: "assets/locations/block_fortress.png",
+      effectId: "loneBuilder",   fxKey: "smoke",    ambient: "smoke",  weather: "leaves", effectText: "+2 Power while it's your only card here." },
+    { id: "crystal_caverns",name:"Crystal Caverns",imageURL:"assets/locations/crystal_caverns.png",
+      effectId: "buffAll",       fxKey: "ice",      ambient: "aura",   weather: "snow",   effectText: "Cards here have +2 Power." },
+    { id: "star_cruiser",  name: "Star Cruiser",  imageURL: "assets/locations/star_cruiser.png",
+      effectId: "crowdedBonus",  fxKey: "zap",      ambient: "electric",weather: "stars", effectText: "+1 Power here per card you have here. Squadron up." },
   ],
 
   /* ── MUSIC ─────────────────────────────────────────────────────────────
@@ -383,6 +398,45 @@ window.GAAM_CONFIG = {
     golden_city:   { src: "assets/music/golden_city.mp3",
                      chords: [[261.6,329.6,392],[196,246.9,293.7],[220,261.6,329.6],[174.6,220,261.6]],
                      beat: 1.7 },
+    pixel_meadow:  { src: "assets/music/pixel_meadow.mp3",
+                     chords: [[261.6,329.6,392],[220,277.2,329.6],[293.7,370,440],[261.6,311.1,392]],
+                     beat: 1.05 },
+    speedway_loop: { src: "assets/music/speedway_loop.mp3",
+                     chords: [[196,246.9,311.1],[174.6,220,277.2],[196,246.9,311.1],[233,293.7,349.2]],
+                     beat: 0.95 },
+    haunted_manor: { src: "assets/music/haunted_manor.mp3",
+                     chords: [[110,130.8,164.8],[103.8,123.5,155.6],[110,138.6,164.8],[98,116.5,146.8]],
+                     beat: 2.6 },
+    dojo_rooftop:  { src: "assets/music/dojo_rooftop.mp3",
+                     chords: [[146.8,185,220],[130.8,164.8,196],[164.8,207.7,246.9],[146.8,174.6,220]],
+                     beat: 1.7 },
+    block_fortress:{ src: "assets/music/block_fortress.mp3",
+                     chords: [[196,246.9,293.7],[164.8,207.7,246.9],[174.6,220,261.6],[146.8,185,220]],
+                     beat: 1.8 },
+    crystal_caverns:{src: "assets/music/crystal_caverns.mp3",
+                     chords: [[164.8,246.9,311.1],[146.8,220,277.2],[185,277.2,349.2],[155.6,233,293.7]],
+                     beat: 2.2 },
+    star_cruiser:  { src: "assets/music/star_cruiser.mp3",
+                     chords: [[130.8,196,261.6],[116.5,174.6,233],[146.8,220,293.7],[123.5,185,246.9]],
+                     beat: 1.4 },
+  },
+
+  /* ── ANNOUNCER VOICE ───────────────────────────────────────────────────
+     Arcade announcer for the big banner moments (round starts, supers,
+     revives, snaps, results). Uses the browser's speech synthesis — no
+     audio files. `style` picks from `styles` (admin-publishable so every
+     player hears the same character); players can mute it with the 🎙
+     toggle in the top bar. */
+  voice: {
+    enabled: 1,
+    style: "arcade",  /* which of the styles below to use */
+    styles: {
+      arcade:    { label: "Arcade Hype",    pitch: 0.55, rate: 1.12, voiceHint: "male|david|daniel|fred" },
+      deep:      { label: "Deep Doom",      pitch: 0.30, rate: 0.92, voiceHint: "male|david|daniel|fred" },
+      hype:      { label: "Fast Hype",      pitch: 0.85, rate: 1.35, voiceHint: "" },
+      robot:     { label: "Robo Referee",   pitch: 0.12, rate: 1.02, voiceHint: "zarvox|robot|whisper" },
+      announcer: { label: "Ring Announcer", pitch: 0.45, rate: 0.85, voiceHint: "male|david|daniel" },
+    },
   },
 
   /* ── CLOUD (Supabase) ───────────────────────────────────────────────────

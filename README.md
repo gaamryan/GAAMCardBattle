@@ -167,6 +167,14 @@ New accounts start with the **16 cheapest cards unlocked**; every win unlocks on
 
 Each staging turn has a **turn timer** (default 45s, shown in the turn pill; it auto-plays End Turn at zero — set `rules.turnTimerSec: 0` in config or Admin → Rules to disable). Impatient during a reveal? **Tap anywhere to fast-forward** the rest of it. And if your OS is set to *reduce motion*, the game honors it: decorative animation is switched off and reveals run at fast-forward pace automatically.
 
+## Stages
+
+12 stages ship in the pool — the original five plus seven video-game homages (Pixel Meadow, Speedway Loop, Haunted Manor, Rooftop Dojo, Block Fortress, Crystal Caverns, Star Cruiser) — and every match deals 3 at random. Each stage has its own background, weather, ambient FX, effect, and synth theme (per-stage MP3s play in Per-stage music mode when you drop matching files into `assets/music/`). Add your own in `config.js → locations` or rename/reskin them in Admin → Stages.
+
+## Announcer & How to Play
+
+An arcade **announcer voice** calls the big moments — turn starts, FINAL TURN, supers, revives, snaps, and the result — using your browser's speech synthesis (no downloads). Mute it any time with the 🎙 pill in the top bar. The admin picks the announcer character in Admin → Music (five styles, with a Test button) and can publish it for all players. New players can learn everything from **📖 How to Play** on the main menu — it reads the live rules, so admin changes show up in it automatically.
+
 ## Multiplayer
 
 Host Match → get a code like `X7K2` → friend enters it in Join. Uses PeerJS (free public broker) for direct browser-to-browser play. Only card plays are exchanged; hands/decks stay private. A shared RNG seed keeps random ability outcomes identical on both clients. Note: `file://` usually works, but some networks (strict NATs) can block P2P — hosting the folder over HTTPS is most reliable.
