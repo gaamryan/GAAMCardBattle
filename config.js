@@ -49,6 +49,8 @@ window.GAAM_CONFIG = {
     cubesEnabled: 1,        // 🎲 Snap/Retreat stakes: match is worth cubes, SNAP doubles them
     unlocksEnabled: 1,      // card progression: 1 = win matches to unlock cards, 0 = all cards available
     unlockStartCount: 16,   // cards unlocked for a brand-new account (cheapest first)
+    hintsEnabled: 1,        // rookie hint: glow the best location while dragging
+    hintGamesMax: 10,       // hints turn off automatically after this many games
     revealStaggerMs: 900,   // pause between each card reveal
     interactStaggerMs: 130, // pause between multi-target ability hits
     superTeamSize: 2,       // team members needed at one location to unlock a Super

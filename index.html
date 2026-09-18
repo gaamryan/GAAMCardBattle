@@ -145,6 +145,11 @@ body{display:flex;align-items:center;justify-content:center;
   transition:transform .1s,filter .2s;}
 #btnEnd:active{transform:translateY(2px);box-shadow:0 1px 0 #a86a00;}
 #btnEnd:disabled{filter:grayscale(.7) brightness(.55);cursor:not-allowed;}
+#energyNext{font-size:9px;color:var(--dim);letter-spacing:.5px;margin-top:2px;}
+#btnUndo{width:100%;margin-bottom:6px;padding:6px 4px;border-radius:12px;border:1px solid #ffffff2a;
+  cursor:pointer;font-weight:800;font-size:11px;color:var(--ink);background:#ffffff10;display:none;}
+#btnUndo:active{transform:translateY(1px);}
+.location.hintGlow{box-shadow:0 0 0 2px #6fe3ff88, 0 0 26px #6fe3ff44;}
 #btnSnap{width:100%;margin-bottom:6px;padding:7px 4px;border-radius:12px;border:none;cursor:pointer;
   font-weight:900;font-size:12px;color:#fff;display:none;
   background:linear-gradient(180deg,#a05df0,#5b1fa0);box-shadow:0 3px 0 #3d1070;}
@@ -457,7 +462,9 @@ body{display:flex;align-items:center;justify-content:center;
         <div id="energyBox">
           <div id="energyNum">1</div>
           <div id="energyLbl">ENERGY</div>
+          <div id="energyNext"></div>
         </div>
+        <button id="btnUndo" title="Take back your last play">↩ Undo</button>
         <button id="btnSnap" title="Double the cube stakes (once per match)">🎲 ×1 SNAP</button>
         <button id="btnEnd">End Turn</button>
         <div id="deckCount">Deck: 9</div>
@@ -1891,7 +1898,7 @@ function renderHowTo(){
     sec("📡 MULTIPLAYER",
       `Host a match to get a code; your friend hits Join and enters it. Only your plays travel — hands stay private. Rematch instantly from the results screen. With an online account your decks, stats, rating and unlocks follow you to any device.`)+
     sec("⏩ GOOD TO KNOW",
-      `Tap anywhere during a reveal to fast-forward it. 🎙 toggles the announcer, 🔊 the sound. 🏳 concedes.`);
+      `Tap anywhere during a reveal to fast-forward it. ${gold("↩ Undo")} takes back your last play. The energy box shows next turn's energy. New players get a glowing hint on the best location while dragging. 🎙 toggles the announcer, 🔊 the sound. 🏳 concedes.`);
 }
 $("btnHowTo").onclick=()=>{audio.click();renderHowTo();
   closeOverlay("menuOverlay",()=>showOverlay("howtoOverlay"));};
@@ -2318,6 +2325,10 @@ function renderAll(){
   $("deckCount").textContent="Deck: "+G.me.deck.length;
   $("graveCount").textContent="💀 "+G.me.grave.length;
   updateSnapUI();
+  $("btnUndo").style.display=(G.phase==="staging"&&G.me.staged.length)?"block":"none";
+  const nx=$("energyNext");
+  if(nx)nx.textContent=(G.phase!=="menu"&&G.turn<R.turns)
+    ?("next: "+(R.energyPerTurn(G.turn+1)+(G.nextEnergyBonus.me||0))+"⚡"):"";
   const btn=$("btnEnd");
   btn.disabled=G.phase!=="staging";
   btn.textContent=G.phase==="waiting"?"Waiting…":G.phase==="revealing"?"Revealing…":"End Turn";
@@ -2508,7 +2519,39 @@ window.addEventListener("pointermove",(e)=>{
   document.querySelectorAll(".location").forEach((c,i)=>{
     c.querySelectorAll(".slot").forEach(s=>s.classList.toggle("hot",i===li&&canStage(drag.card,li)));
   });
+  updateHint(drag.card);
 },{passive:false});
+/* rookie hint: glow the location where this card scores highest. Shown only
+   while hints are on (rules.hintsEnabled) AND the account is still new
+   (fewer than rules.hintGamesMax games played). */
+function hintValue(card,li){
+  let v=card.def.power;
+  const eff=G.locs[li].def.effectId;
+  if(eff&&LOCATION_EFFECTS[eff]&&LOCATION_EFFECTS[eff].perCard)
+    v+=LOCATION_EFFECTS[eff].perCard(card,li,"me",G);
+  const tm=teamOf(card.def.id);
+  if(tm){
+    const mates=G.locs[li].cards.me.concat(
+      G.me.staged.filter(x=>!x.super&&x.locIdx===li).map(x=>x.card))
+      .filter(c=>{const t=teamOf(c.def.id);return t&&t.id===tm.id;}).length;
+    v+=mates*1.5;
+  }
+  return v;
+}
+function updateHint(card){
+  document.querySelectorAll(".location.hintGlow").forEach(el=>el.classList.remove("hintGlow"));
+  if(!(R.hintsEnabled??1))return;
+  const st=Stats.load();
+  if(((st.win||0)+(st.lose||0)+(st.draw||0))>=(R.hintGamesMax??10))return;
+  if(!card)return;
+  let best=-1,bi=-1;
+  for(let i=0;i<G.locs.length;i++){
+    if(!canStage(card,i))continue;
+    const v=hintValue(card,i);
+    if(v>best){best=v;bi=i;}
+  }
+  if(bi>=0){const el=document.querySelectorAll(".location")[bi];if(el)el.classList.add("hintGlow");}
+}
 /* double-tap detector: inspector opens on the 2nd tap of the same card
    within 400ms (single taps still preview in the info bar / do nothing). */
 let _lastTap={id:null,t:0};
@@ -2528,6 +2571,7 @@ window.addEventListener("pointerup",(e)=>{
   }
   ghost.style.display="none";
   document.querySelectorAll(".slot").forEach(s=>s.classList.remove("droppable","hot"));
+  document.querySelectorAll(".location.hintGlow").forEach(el=>el.classList.remove("hintGlow"));
   document.querySelectorAll(".hcard").forEach(h=>h.classList.remove("dragging"));
   drag=null;
 });
@@ -2535,6 +2579,7 @@ window.addEventListener("pointercancel",()=>{
   if(!drag)return;
   ghost.style.display="none";
   document.querySelectorAll(".slot").forEach(s=>s.classList.remove("droppable","hot"));
+  document.querySelectorAll(".location.hintGlow").forEach(el=>el.classList.remove("hintGlow"));
   document.querySelectorAll(".hcard").forEach(h=>h.classList.remove("dragging"));
   drag=null;
 });
@@ -3475,7 +3520,7 @@ $("deckName").addEventListener("input",()=>{deckEdit.name=$("deckName").value;})
 const ADMIN_RULES=["turns","locationCount","maxCardsPerLocation","locationsToWin",
   "deckSize","startingHand","maxHand","aiThinkMs","revealStaggerMs","interactStaggerMs",
   "superTeamSize","superUsesPerTeam","superCooldownTurns","superCost",
-  "teamSynergyMin","teamSynergyBonus","turnTimerSec","cubesEnabled","unlocksEnabled","unlockStartCount"];
+  "teamSynergyMin","teamSynergyBonus","turnTimerSec","cubesEnabled","unlocksEnabled","unlockStartCount","hintsEnabled","hintGamesMax"];
 const Admin={
   KEY:"gaam_admin",
   applyStored(){try{
@@ -3864,6 +3909,11 @@ $("btnLbClose").onclick=()=>{audio.click();
   closeOverlay("lbOverlay",()=>{if(G.phase==="menu")showOverlay("menuOverlay");});};
 $("btnAgain").onclick=()=>{audio.click();closeOverlay("overOverlay",showMenu);};
 $("btnEnd").onclick=endTurnPressed;
+$("btnUndo").onclick=()=>{
+  if(G.phase!=="staging"||!G.me.staged.length)return;
+  const s2=G.me.staged[G.me.staged.length-1];
+  if(s2.super)cancelSuper(s2);else retractStaged(s2);
+};
 $("btnMute").onclick=()=>{audio.unlock();$("btnMute").textContent=audio.toggleMute()?"🔇":"🔊";};
 $("joinCode").addEventListener("keydown",(e)=>{if(e.key==="Enter")$("btnJoin").click();});
 window.addEventListener("beforeunload",()=>net.close());
