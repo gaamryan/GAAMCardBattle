@@ -495,9 +495,17 @@ body{display:flex;align-items:center;justify-content:center;
     </div>
     <button class="mbtn" id="btnDecks">🃏 &nbsp;Deck Builder</button>
     <button class="mbtn" id="btnBoard">🏆 &nbsp;Leaderboard</button>
+    <button class="mbtn" id="btnDaily">🎯 &nbsp;Daily Challenges</button>
     <button class="mbtn" id="btnHowTo">📖 &nbsp;How to Play</button>
     <button class="mbtn" id="btnAdmin">⚙️ &nbsp;Admin</button>
     <div class="subtext">Win 2 of 3 locations by having more Power. 6 turns. Energy grows each turn.</div>
+  </div>
+
+  <!-- ---- Daily challenges ---- -->
+  <div class="overlay hidden" id="dailyOverlay">
+    <div class="ovTitle">🎯 DAILY CHALLENGES</div>
+    <div id="dailyBody" style="width:100%;display:flex;flex-direction:column;align-items:center;"></div>
+    <button class="mbtn" id="btnDailyClose" style="margin-top:10px;">Close</button>
   </div>
 
   <!-- ---- How to Play ---- -->
@@ -1790,6 +1798,7 @@ async function resolveSuper(s,side){
     if(L.cards[side].length>=R.maxCardsPerLocation){toast("Super fizzled — no space!");cineOff();return;}
     grave.splice(grave.indexOf(gc),1);
     gc.halo=true;gc.revealed=true;
+    if(side==="me")G._revives=(G._revives||0)+1;
     L.cards[side].push(gc);
     audio.play("revive");
     playFinisher("superRevive"); /* full-screen light bloom */
@@ -1829,6 +1838,8 @@ function endMatchConceded(winnerSide,reason){
   if(cubeDelta)$("resultDetail").innerHTML+=
     `<br>🎲 Cubes: <b style="color:${cubeDelta>0?"var(--gold)":"var(--bad)"}">${cubeDelta>0?"+":""}${cubeDelta}</b>`;
   Stats.record(outcome,{mode:G.mode,me:myTotal,op:opTotal,locs:w.me+"-"+w.op,outcome,cubes:cubeDelta});
+  Dailies.onMatch({won:outcome==="win",myTotal,oppLocs:w.op,snapped:G.snapped.me,cubes:cubeDelta,
+    supers:Object.values(G.me.supersUsed).reduce((n,u)=>n+u.n,0),revives:G._revives||0,maxTeam:G._maxTeam||0});
   if(outcome==="win"){
     const nc=Unlocks.grantRandom();
     if(nc)$("resultDetail").innerHTML+=
@@ -1893,6 +1904,8 @@ function renderHowTo(){
       `Every match is played for cubes — the stake starts at 1. Hit ${gold("SNAP")} (purple button) to double it, once per player; both players snapping makes ×4. Win the match, win the stake; concede (retreat) or lose, and you pay it. Cube totals rank on the leaderboard.`):"")+
     ((R.unlocksEnabled??0)?sec("🔓 UNLOCKING CARDS",
       `New accounts start with the ${gold(R.unlockStartCount??16)} cheapest cards. Every ${gold("WIN")} unlocks one random new card. Locked cards appear greyed with 🔒 in the deck builder.`):"")+
+    ((R.dailiesEnabled??1)?sec("🎯 DAILY CHALLENGES",
+      `Three challenges rotate daily — the same three for everyone. Complete them in any mode for bonus ${gold("🎲 cubes")} or ${gold("card unlocks")}; rewards land automatically. Check progress from the menu.`):"")+
     sec("🏗 DECKS",
       `Build up to 5 decks of ${gold(R.deckSize)} cards (max 2 copies each) in the Deck Builder; ★ Set Active picks the one you play. Short decks are padded automatically.`)+
     sec("📡 MULTIPLAYER",
@@ -1900,6 +1913,10 @@ function renderHowTo(){
     sec("⏩ GOOD TO KNOW",
       `Tap anywhere during a reveal to fast-forward it. ${gold("↩ Undo")} takes back your last play. The energy box shows next turn's energy. New players get a glowing hint on the best location while dragging. 🎙 toggles the announcer, 🔊 the sound. 🏳 concedes.`);
 }
+$("btnDaily").onclick=()=>{audio.click();renderDailies();
+  closeOverlay("menuOverlay",()=>showOverlay("dailyOverlay"));};
+$("btnDailyClose").onclick=()=>{audio.click();
+  closeOverlay("dailyOverlay",()=>{showOverlay("menuOverlay");updateDailyBtn();});};
 $("btnHowTo").onclick=()=>{audio.click();renderHowTo();
   closeOverlay("menuOverlay",()=>showOverlay("howtoOverlay"));};
 $("btnHowToClose").onclick=()=>{audio.click();
@@ -1966,6 +1983,10 @@ function startMatch(mode,{seed,locIds}={}){
   $("btnQuit").style.display="inline-block";
   startAmbient();
   startWeather();
+  G._revives=0;
+  {const tc={};G.me.deck.concat(G.me.hand).forEach(c=>{
+    const t=teamOf(c.def.id);if(t)tc[t.id]=(tc[t.id]||0)+1;});
+   G._maxTeam=Object.values(tc).reduce((a,b)=>Math.max(a,b),0);}
   matchIntro(); /* plate flips + VS banner, then turn 1 */
 }
 
@@ -2192,6 +2213,8 @@ async function endMatch(){
   if(cubeDelta)$("resultDetail").innerHTML+=
     `<br>🎲 Cubes: <b style="color:${cubeDelta>0?"var(--gold)":"var(--bad)"}">${cubeDelta>0?"+":""}${cubeDelta}</b>`;
   Stats.record(outcome,{mode:G.mode,me:myTotal,op:opTotal,locs:w.me+"-"+w.op,outcome,cubes:cubeDelta});
+  Dailies.onMatch({won:outcome==="win",myTotal,oppLocs:w.op,snapped:G.snapped.me,cubes:cubeDelta,
+    supers:Object.values(G.me.supersUsed).reduce((n,u)=>n+u.n,0),revives:G._revives||0,maxTeam:G._maxTeam||0});
   if(outcome==="win"){
     const nc=Unlocks.grantRandom();
     if(nc){setTimeout(()=>{bannerEpic("NEW CARD UNLOCKED — "+nc.name.toUpperCase()+"!");
@@ -2943,6 +2966,97 @@ const Unlocks={
     Cloud.pushUnlocks(); /* best-effort cross-device sync */
     return c;},
 };
+/* ============================================================================
+   DAILY CHALLENGES — 3 per day, same for every player (picked by a
+   date-seeded rng, no server needed). Progress is per-account; rewards are
+   cubes or a bonus card unlock, granted automatically on completion.
+   rules.dailiesEnabled: 0 switches the system off.
+   ========================================================================= */
+const CHALLENGE_DEFS={
+  win1:   {txt:"Win a match",                              target:1,reward:{cubes:2}, on:m=>m.won?1:0},
+  win2:   {txt:"Win 2 matches",                            target:2,reward:{cubes:3}, on:m=>m.won?1:0},
+  play3:  {txt:"Play 3 matches",                           target:3,reward:{cubes:2}, on:()=>1},
+  super2: {txt:"Fire 2 Supers in one match",               target:1,reward:{cubes:3}, on:m=>m.supers>=2?1:0},
+  revive1:{txt:"Revive a card with a Super",               target:1,reward:{unlock:1},on:m=>m.revives>=1?1:0},
+  snapwin:{txt:"Win a match you Snapped",                  target:1,reward:{cubes:3}, on:m=>(m.won&&m.snapped)?1:0},
+  perfect:{txt:"Win every location in a match",            target:1,reward:{unlock:1},on:m=>(m.won&&m.oppLocs===0)?1:0},
+  power60:{txt:"Finish a match with 60+ total Power",      target:1,reward:{cubes:2}, on:m=>m.myTotal>=60?1:0},
+  team4:  {txt:"Win with 4+ cards of one team in your deck",target:1,reward:{cubes:3},on:m=>(m.won&&m.maxTeam>=4)?1:0},
+  cubes3: {txt:"Bank 3 cubes today",                       target:3,reward:{cubes:2}, on:m=>Math.max(0,m.cubes||0)},
+};
+const Dailies={
+  KEY(){return "gaam_daily::"+Users.current();},
+  enabled(){return !!(R.dailiesEnabled??1);},
+  todayKey(){const d=new Date();return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();},
+  picks(){ /* deterministic 3-of-N for today — identical for all players */
+    const rng=mulberry32(this.todayKey()*7919);
+    const pool=Object.keys(CHALLENGE_DEFS),out=[];
+    while(out.length<3&&pool.length)out.push(pool.splice(Math.floor(rng()*pool.length),1)[0]);
+    return out;},
+  load(){let o=null;try{o=JSON.parse(localStorage.getItem(this.KEY()));}catch(e){}
+    if(!o||o.date!==this.todayKey())o={date:this.todayKey(),prog:{},done:{}};
+    return o;},
+  save(o){try{localStorage.setItem(this.KEY(),JSON.stringify(o));}catch(e){}},
+  doneCount(){const o=this.load();return this.picks().filter(id=>o.done[id]).length;},
+  onMatch(m){
+    if(!this.enabled())return;
+    const o=this.load(),completed=[];
+    this.picks().forEach(id=>{
+      if(o.done[id])return;
+      const def=CHALLENGE_DEFS[id];
+      const inc=def.on(m)||0;
+      if(!inc)return;
+      o.prog[id]=Math.min(def.target,(o.prog[id]||0)+inc);
+      if(o.prog[id]>=def.target){o.done[id]=true;completed.push(id);}
+    });
+    this.save(o);
+    completed.forEach((id,i)=>setTimeout(()=>this.grant(id),2600+i*2200));
+    updateDailyBtn();
+  },
+  grant(id){
+    const def=CHALLENGE_DEFS[id];
+    bannerEpic("CHALLENGE COMPLETE!");
+    audio.play("revive");
+    let msg="🎯 "+def.txt;
+    if(def.reward.cubes){
+      const st=Stats.load();st.cubes=(st.cubes||0)+def.reward.cubes;Stats.save(st);
+      Cloud.pushStats();msg+=" — +"+def.reward.cubes+" 🎲";
+    }
+    if(def.reward.unlock){
+      const c=Unlocks.grantRandom();
+      if(c)msg+=" — unlocked "+c.name+"!";
+      else{const st=Stats.load();st.cubes=(st.cubes||0)+2;Stats.save(st);Cloud.pushStats();msg+=" — +2 🎲";}
+    }
+    toast(msg,3800);
+  },
+};
+function updateDailyBtn(){
+  const b=$("btnDaily");if(!b)return;
+  if(!Dailies.enabled()){b.style.display="none";return;}
+  b.style.display="";
+  b.innerHTML="🎯 &nbsp;Daily Challenges <span style='color:var(--gold)'>("+Dailies.doneCount()+"/3)</span>";
+}
+function renderDailies(){
+  const box=$("dailyBody");box.innerHTML="";
+  const o=Dailies.load();
+  Dailies.picks().forEach(id=>{
+    const def=CHALLENGE_DEFS[id];
+    const done=!!o.done[id],prog=Math.min(def.target,o.prog[id]||0);
+    const row=document.createElement("div");
+    row.style.cssText="width:100%;max-width:420px;background:#ffffff0d;border:1px solid "+(done?"var(--gold)":"#ffffff22")+";border-radius:12px;padding:10px 12px;margin:5px 0;text-align:left;";
+    const rw=def.reward.cubes?("+"+def.reward.cubes+" 🎲"):"🔓 card unlock";
+    row.innerHTML=
+      `<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;">`+
+      `<span>${done?"✅ ":""}${esc(def.txt)}</span><span style="color:var(--gold)">${rw}</span></div>`+
+      `<div style="height:6px;border-radius:3px;background:#ffffff14;margin-top:7px;overflow:hidden;">`+
+      `<div style="height:100%;width:${(prog/def.target*100).toFixed(0)}%;background:${done?"var(--gold)":"var(--accent)"};"></div></div>`+
+      `<div style="font-size:10px;color:var(--dim);margin-top:3px;">${prog}/${def.target}</div>`;
+    box.appendChild(row);
+  });
+  const note=document.createElement("div");note.className="subtext";
+  note.textContent="New challenges every day — same three for every player. Rewards land automatically when you complete one.";
+  box.appendChild(note);
+}
 const Stats={
   _key(){return "gaam_stats::"+Users.current();},
   loadFor(user){try{return JSON.parse(localStorage.getItem("gaam_stats::"+user))||{};}catch(e){return{};}},
@@ -3520,7 +3634,7 @@ $("deckName").addEventListener("input",()=>{deckEdit.name=$("deckName").value;})
 const ADMIN_RULES=["turns","locationCount","maxCardsPerLocation","locationsToWin",
   "deckSize","startingHand","maxHand","aiThinkMs","revealStaggerMs","interactStaggerMs",
   "superTeamSize","superUsesPerTeam","superCooldownTurns","superCost",
-  "teamSynergyMin","teamSynergyBonus","turnTimerSec","cubesEnabled","unlocksEnabled","unlockStartCount","hintsEnabled","hintGamesMax"];
+  "teamSynergyMin","teamSynergyBonus","turnTimerSec","cubesEnabled","unlocksEnabled","unlockStartCount","hintsEnabled","hintGamesMax","dailiesEnabled"];
 const Admin={
   KEY:"gaam_admin",
   applyStored(){try{
@@ -3875,6 +3989,7 @@ $("btnAdminPublish").onclick=async()=>{audio.click();
 $("btnAdminReset").onclick=()=>{audio.click();Admin.reset();toast("Overrides cleared — reload the page");};
 $("btnAdminClose").onclick=()=>{audio.click();closeAdmin();};
 Admin.applyStored(); /* boot: re-apply saved edits */
+updateDailyBtn(); /* after Dailies + rules exist */
 
 /* ============================================================================
    MENU / OVERLAY WIRING

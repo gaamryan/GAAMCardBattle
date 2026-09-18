@@ -4,6 +4,8 @@ All notable changes to GAAM Card Battle. Convention: add an entry under **Unrele
 
 ## Unreleased
 
+- **🎯 Daily challenges** — three per day, identical for every player (date-seeded pick from a 10-challenge pool: wins, supers, revives, snapped wins, perfect games, power thresholds, team decks, cube banking). Progress tracks automatically across matches; rewards (+2/+3 🎲 or a bonus card unlock) land with a "CHALLENGE COMPLETE!" banner. Menu button shows today's 0–3 count; `rules.dailiesEnabled: 0` disables.
+
 - **QoL trio**: ↩ **Undo** button takes back your last play (cards and armed supers, full refund); the energy box shows **next turn's energy** ("next: 4⚡") for planning ahead; **rookie hints** glow the best location while a new player drags a card (auto-disables after `rules.hintGamesMax` games; `rules.hintsEnabled: 0` turns it off).
 
 - **Recorded voice-pack support** — drop MP3 call-outs into `assets/voice/` (exact filenames + full recording script in `docs/VOICE_PACK.md`: battle start, rounds 1–5, final round, hurry-up/time's-up, supers, revive, snap, combo, results incl. PERFECT VICTORY, new card, rematch, interjections) and the game plays them instead of the synthesized announcer, line by line, with per-line synth fallback for anything missing. New timer call-outs: "HURRY UP!" at 10s, "TIME'S UP!" at zero. Winning every location now announces **PERFECT VICTORY!**
